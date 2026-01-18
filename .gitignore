@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.DS_Store
+.env
+venv/
+*.zip
+*.csv
+# Don't ignore the JSON file, we want that in the repo
+!data/station_patterns.json
