@@ -44,6 +44,10 @@ NUM_NEARBY_STATIONS = 5
 # How many closest stations to use for calculating predictions/warnings
 # (Restricted to closest 2 to avoid averaging out specific location data)
 NUM_PREDICTION_STATIONS = 2
+# Absolute floor: minimum bikes to avoid LOW rating regardless of percentage
+# (Accounts for ~10% damaged bikes + buffer for others grabbing bikes)
+ABSOLUTE_BIKE_FLOOR = 5
+ABSOLUTE_DOCK_FLOOR = 5
 
 # Day name mapping
 DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -218,6 +222,11 @@ def get_prediction_for_stations(nearby_stations: list, predictions: dict) -> dic
     else:
         bike_likelihood = "LOW"
     
+    # Apply absolute floor: if enough bikes exist, never show LOW
+    # (Accounts for damaged bikes and others grabbing bikes)
+    if total_bikes >= ABSOLUTE_BIKE_FLOOR and bike_likelihood == "LOW":
+        bike_likelihood = "MEDIUM"
+    
     # Dock likelihood
     if dock_pct >= 40 and total_net_flow_docks >= -2:
         dock_likelihood = "HIGH"
@@ -225,6 +234,10 @@ def get_prediction_for_stations(nearby_stations: list, predictions: dict) -> dic
         dock_likelihood = "MEDIUM"
     else:
         dock_likelihood = "LOW"
+    
+    # Apply absolute floor for docks
+    if total_docks >= ABSOLUTE_DOCK_FLOOR and dock_likelihood == "LOW":
+        dock_likelihood = "MEDIUM"
     
     # Generate depletion warning messages
     bike_warning = None

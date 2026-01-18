@@ -4,6 +4,47 @@ This document explains the design decisions behind our bike availability predict
 
 ---
 
+## Key Terms and Definitions
+
+Before diving into the model, here are the key terms used throughout this document:
+
+| Term | Definition |
+|------|------------|
+| **Departures** | Bikes leaving a station (someone unlocks and rides away). |
+| **Arrivals** | Bikes returning to a station (someone docks a bike). |
+| **Net Flow** | `Arrivals - Departures` for a given time period. Positive = gaining bikes. Negative = losing bikes. |
+| **Depletion Hour** | The hour of the day when a station historically hits its lowest bike count. |
+| **Severity Score** | The cumulative net bike loss at the Depletion Hour, summed across all weeks in the dataset. Higher = more consistent/severe depletion. |
+| **bike_pct** | Current bike availability as a percentage of capacity. `(bikes_available / total_capacity) * 100`. |
+| **Absolute Floor** | A minimum bike count below which we consider availability risky, regardless of percentage. |
+| **Hyper-Local** | Predictions based only on the closest 2 stations, not a wider average. |
+
+### Hourly Granularity vs. Weekly Averaging
+
+A common point of confusion: when we say "net flow of -2.2 bikes/week," this does **not** mean the station loses 2.2 bikes over an entire week.
+
+**What it actually means:**
+- The data is measured at **hourly granularity** (e.g., "Sunday 11 AM to 12 PM").
+- The "per week" refers to **averaging across 39 weeks** of historical data to smooth out noise.
+
+**Example:**
+```
+Station 7000 - Sunday 11 AM:
+  Departures: 6.0 (average across 39 Sundays, during the 11 AM hour)
+  Arrivals: 3.9 (average across 39 Sundays, during the 11 AM hour)
+  Net Flow: -2.2 (this station loses ~2 bikes during the 11 AM hour on Sundays)
+```
+
+So "-2.2 net flow" means: **"Every Sunday, specifically between 11 AM and 12 PM, this station typically loses about 2 bikes."**
+
+| Dimension | Granularity |
+|-----------|-------------|
+| Time of day | Per hour (0-23) |
+| Day of week | Per day (Mon-Sun) |
+| Data smoothing | Averaged across 39 weeks |
+
+---
+
 ## The Core Insight: Cyclical Behavior
 
 Bike share usage is fundamentally **cyclical and predictable**. Unlike domains where user behavior is chaotic or driven by unpredictable external factors, urban commuting follows deeply ingrained patterns tied to:
@@ -151,12 +192,153 @@ Both conditions must be true:
 When the app runs, it:
 1. Fetches **live availability** from the Toronto Bike Share API.
 2. Looks up the **historical net flow** for the current `(station, day, hour)`.
-3. Combines them:
-   - **HIGH:** Current availability is good (>40%) AND trend is stable or positive.
-   - **MEDIUM:** Current availability is okay (>25%) OR improving.
-   - **LOW:** Current availability is poor OR trend shows rapid depletion.
+3. Combines them using the Likelihood Thresholds (see below).
 
-### Step 5: Warnings
+---
+
+## Likelihood Thresholds: The Decision Logic
+
+The app displays one of three signals: **HIGH**, **MEDIUM**, or **LOW**. Here's exactly how that decision is made.
+
+### The Thresholds
+
+```python
+# HIGH: Good availability AND stable/improving trend
+if bike_pct >= 40 and net_flow >= -2:
+    likelihood = "HIGH"
+
+# MEDIUM: Okay availability OR low-but-improving
+elif bike_pct >= 25 or (bike_pct >= 15 and net_flow > 0):
+    likelihood = "MEDIUM"
+
+# LOW: Everything else
+else:
+    likelihood = "LOW"
+```
+
+### What Each Variable Means
+
+| Variable | Source | Meaning |
+|----------|--------|---------|
+| `bike_pct` | Live API | Current bikes as % of capacity (e.g., 18 bikes / 74 capacity = 24.3%) |
+| `net_flow` | Historical JSON | How many bikes this station gains/loses during this hour on this day (e.g., -2.2 = losing ~2 bikes/hour) |
+
+### Threshold Breakdown
+
+| Level | Condition | Interpretation |
+|-------|-----------|----------------|
+| **HIGH** | `bike_pct >= 40%` AND `net_flow >= -2` | "Plenty of bikes right now, and the station isn't draining fast." |
+| **MEDIUM** | `bike_pct >= 25%` OR (`bike_pct >= 15%` AND `net_flow > 0`) | "Availability is okay" OR "It's low but bikes are arriving." |
+| **LOW** | Everything else | "Low availability AND the trend is negative. Risky." |
+
+### Worked Example: 215 Fort York Blvd, Sunday 11 AM
+
+**Step 1: Gather Current Data (from Live API)**
+
+| Station (Closest 2) | Bikes | Capacity |
+|---------------------|-------|----------|
+| Fort York Blvd / Capreol Ct | 14 | 47 |
+| Dan Leckie Way / Fort York Blvd | 4 | 27 |
+| **Total** | **18** | **74** |
+
+```
+bike_pct = 18 / 74 = 24.3%
+```
+
+**Step 2: Look Up Historical Net Flow (from station_patterns.json)**
+
+| Station | Net Flow (Sunday 11 AM) |
+|---------|-------------------------|
+| Fort York Blvd / Capreol Ct | -2.2 bikes/hour |
+| Dan Leckie Way / Fort York Blvd | -0.8 bikes/hour |
+| **Total** | **-3.0 bikes/hour** |
+
+**Step 3: Apply the Logic**
+
+```
+Check HIGH: 24.3% >= 40%? NO. → Not HIGH.
+Check MEDIUM: 24.3% >= 25%? NO.
+             24.3% >= 15% AND -3.0 > 0? NO (flow is negative). → Not MEDIUM.
+Default: LOW
+```
+
+**Result:** The app shows **LOW** because:
+1. Current availability (24.3%) is below the 25% threshold.
+2. The trend is negative (-3.0 bikes/hour), so it's not improving.
+
+### The Problem with Pure Percentages
+
+In the example above, 18 bikes is probably *enough* for a single commuter. But the percentage-based logic sees "24.3% < 25%" and flags it as concerning.
+
+This is why we introduced the **Absolute Floor** (see next section).
+
+---
+
+## The Absolute Floor: Minimum Bike Count
+
+### The Problem
+
+Percentage-based thresholds can be misleading:
+- 5 bikes at a 10-dock station = 50% → HIGH
+- 18 bikes at a 74-dock station = 24% → LOW
+
+But 18 bikes is objectively *more* than 5 bikes. A commuter only needs **one working bike**.
+
+### Reasoning Through the Floor
+
+**What does a commuter actually need?**
+- 1 working bike.
+
+**What could go wrong?**
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Some bikes are damaged (flat tire, broken seat, etc.) | ~10% of docked bikes may be unusable | Need a buffer |
+| Someone else takes a bike while you're walking to the station | Reduces available count | Need a buffer |
+| API data is slightly stale (30-60 seconds) | Minor discrepancy | Minimal impact |
+
+**Estimating Damage Rate:**
+Based on general bike share industry data, approximately **5-10%** of docked bikes have minor issues that make them unrideable. We assume 10% as a conservative estimate.
+
+**Working Backwards:**
+
+| Available Bikes | After 10% Damaged | After 1-2 Others Take | Left for You |
+|-----------------|-------------------|----------------------|--------------|
+| 3 | 2-3 | 1-2 | **0-1** (risky) |
+| 5 | 4-5 | 2-3 | **2-3** (okay) |
+| 8 | 7 | 5 | **5** (comfortable) |
+| 15 | 13-14 | 11-12 | **11-12** (very safe) |
+
+### The Decision: Floor of 5
+
+We set an **absolute floor of 5 bikes**:
+- If there are at least 5 bikes across the closest 2 stations, the likelihood is **at minimum MEDIUM** (never LOW).
+- Below 5 bikes, percentage-based logic applies normally.
+
+**Rationale:**
+- 5 bikes → ~4-5 usable after damage → enough for a commuter even if 1-2 are taken.
+- Low enough to not mask genuine scarcity (4 bikes can still be LOW).
+- High enough to prevent false alarms (18 bikes should never be LOW).
+
+**Implementation:**
+```python
+# After calculating likelihood from percentages...
+if total_bikes >= 5 and bike_likelihood == "LOW":
+    bike_likelihood = "MEDIUM"  # Override: enough absolute bikes
+```
+
+### How This Changes the Example
+
+With the absolute floor applied to the Fort York example:
+- `total_bikes = 18` (well above floor of 5)
+- Original likelihood: LOW
+- **After floor applied: MEDIUM**
+
+This better reflects reality: 18 bikes is enough, even if the percentage looks low.
+
+---
+
+## Step 5: Warnings
 
 If the Depletion Hour for a nearby station falls within the next 4 hours, and the Severity exceeds a threshold (>15 cumulative bikes lost), the app displays a warning:
 
