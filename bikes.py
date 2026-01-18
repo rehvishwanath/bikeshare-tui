@@ -379,8 +379,8 @@ def create_location_panel(location_name: str, location_data: dict,
     
     table.add_column("Station", style="cyan", no_wrap=False, width=30)
     table.add_column("Distance", justify="right", style="yellow", width=8)
-    table.add_column("🚲 Bikes", justify="center", width=20)
-    table.add_column("🔌 Docks", justify="center", width=20)
+    table.add_column("🚲 Bikes", justify="left", width=20)
+    table.add_column("🔌 Docks", justify="left", width=20)
     
     for station in nearby_stations:
         bikes = station["bikes_available"]
