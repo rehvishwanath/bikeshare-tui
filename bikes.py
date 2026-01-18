@@ -39,8 +39,11 @@ LOCATIONS = {
     }
 }
 
-# How many nearby stations to show
+# How many nearby stations to show in the list
 NUM_NEARBY_STATIONS = 5
+# How many closest stations to use for calculating predictions/warnings
+# (Restricted to closest 2 to avoid averaging out specific location data)
+NUM_PREDICTION_STATIONS = 2
 
 # Day name mapping
 DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -55,6 +58,18 @@ def load_predictions() -> dict:
         return None
     with open(PREDICTIONS_FILE, 'r') as f:
         return json.load(f)
+
+
+def format_hour_12h(hour: int) -> str:
+    """Format an hour (0-23) to 12-hour format (12 AM, 1 PM, etc.)."""
+    if hour == 0:
+        return "12 AM"
+    elif hour == 12:
+        return "12 PM"
+    elif hour < 12:
+        return f"{hour} AM"
+    else:
+        return f"{hour - 12} PM"
 
 
 def fetch_json(url: str) -> dict:
@@ -156,7 +171,11 @@ def get_prediction_for_stations(nearby_stations: list, predictions: dict) -> dic
     bike_depletion_warnings = []
     dock_depletion_warnings = []
     
-    for station in nearby_stations:
+    # Only calculate predictions based on the closest few stations
+    # to ensure warnings are relevant to the immediate location.
+    prediction_stations = nearby_stations[:NUM_PREDICTION_STATIONS]
+    
+    for station in prediction_stations:
         station_id = station["id"]
         total_bikes += station["bikes_available"]
         total_docks += station["docks_available"]
@@ -214,12 +233,12 @@ def get_prediction_for_stations(nearby_stations: list, predictions: dict) -> dic
     if bike_depletion_warnings:
         # Find earliest depletion
         earliest = min(bike_depletion_warnings, key=lambda x: x["hour"])
-        bike_warning = f"Often runs low by {earliest['hour']}:00 on {day_full}s"
+        bike_warning = f"Often runs low by {format_hour_12h(earliest['hour'])} on {day_full}s"
     
     # For docks, invert the logic - stations filling up means bikes arriving
     if total_net_flow_bikes > 5:  # Lots of bikes arriving = docks filling
         # Find when docks typically run out
-        for station in nearby_stations:
+        for station in prediction_stations:
             station_id = station["id"]
             if station_id in patterns:
                 # Look ahead for when net flow becomes very positive (docks filling)
@@ -227,7 +246,7 @@ def get_prediction_for_stations(nearby_stations: list, predictions: dict) -> dic
                 for future_hour in range(hour + 1, min(hour + 5, 24)):
                     future_net = pattern.get("net_flow", {}).get(day_name, {}).get(str(future_hour), 0)
                     if future_net > 8:  # Heavy inflow
-                        dock_warning = f"Fills up around {future_hour}:00 on {day_full}s"
+                        dock_warning = f"Fills up around {format_hour_12h(future_hour)} on {day_full}s"
                         break
     
     return {
@@ -432,7 +451,7 @@ def create_header() -> Panel:
     title.append("Live Availability + Predictions", style="bold green")
     
     subtitle = Text()
-    subtitle.append(f"{day_full} {now.strftime('%Y-%m-%d %H:%M:%S')}", style="dim italic")
+    subtitle.append(f"{day_full} {now.strftime('%Y-%m-%d %I:%M:%S %p')}", style="dim italic")
     
     header_content = Text()
     header_content.append_text(title)
@@ -527,7 +546,7 @@ def main():
         pred_info = f" • Predictions based on {predictions.get('metadata', {}).get('data_source', 'historical data')}"
     console.print(
         Align.center(
-            Text(f"📍 Showing {NUM_NEARBY_STATIONS} nearest stations per location • {total_stations} active stations{pred_info}", style="dim")
+            Text(f"📍 Showing {NUM_NEARBY_STATIONS} nearest stations (predictions based on closest {NUM_PREDICTION_STATIONS}) • {total_stations} active stations{pred_info}", style="dim")
         )
     )
     console.print()
