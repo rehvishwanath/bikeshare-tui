@@ -21,9 +21,9 @@ from rich.align import Align
 STATION_INFO_URL = "https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_information"
 STATION_STATUS_URL = "https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_status"
 
-# Path to prediction data (relative to script)
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PREDICTIONS_FILE = os.path.join(SCRIPT_DIR, "data", "station_patterns.json")
+# Path to prediction data (resolve symlink to get actual script location)
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+PREDICTIONS_FILE = os.path.join(SCRIPT_DIR, "..", "data", "station_patterns.json")
 
 # Target locations (approximate coordinates)
 LOCATIONS = {
