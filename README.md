@@ -4,7 +4,7 @@
 
 A zero-latency, CLI-based dashboard for Toronto Bike Share commuters. Designed to solve the "death by a thousand cuts" friction of using the official mobile app for daily commutes.
 
-![Demo](https://via.placeholder.com/800x400?text=Screenshot+Coming+Soon)
+![Demo](assets/demo.png)
 
 ## The Problem
 The official mobile app is great for tourists but painful for daily commuters.
