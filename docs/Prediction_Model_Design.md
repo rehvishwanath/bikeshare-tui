@@ -11,6 +11,7 @@ Bike share usage is fundamentally **cyclical and predictable**. Unlike domains w
 1. **Work schedules** (9-5 jobs, shift work)
 2. **Day of week** (weekdays vs. weekends)
 3. **Time of day** (rush hours, lunch breaks, evenings)
+4. **Seasons** (in countries with multiple seasons, ridership follows predictable seasonal curves—higher in spring/summer, lower in winter)
 
 These patterns repeat week after week with high consistency.
 
@@ -116,7 +117,36 @@ for hour in 0..23:
 
 The **Depletion Hour** is when the station historically hits its lowest point. The **Severity** is the magnitude of that low point (total bikes lost).
 
-### Step 3: Real-Time Prediction
+### Step 3: Severity Threshold
+
+The **Severity Score** is not a percentage or a probability—it is a raw count of cumulative bike loss over the historical dataset.
+
+**What it represents:**
+- A Severity of **50** means: "Over 39 weeks of data, by this hour on this day, this station had cumulatively lost 50 more bikes than it gained."
+- Divided by weeks, that's ~1.3 bikes/week net loss—a modest but consistent drain.
+
+**Why we use a threshold of 15:**
+
+| Severity | Interpretation | Action |
+|----------|----------------|--------|
+| < 15 | Negligible risk. Random fluctuation, not a pattern. | No warning. |
+| 15–50 | Mild risk. Station trends toward empty but usually recovers. | Show warning if imminent. |
+| 50–200 | Moderate risk. Station reliably drains at this time. | Show warning. |
+| > 200 | High risk. Station is a major exporter of bikes (e.g., near transit hub). | Show warning with high confidence. |
+
+The threshold of **15** filters out noise. With 39 weeks of data, a severity below 15 means the station loses less than 0.4 bikes/week on average—statistically insignificant and likely due to variance rather than a true pattern.
+
+**How it's incorporated:**
+```python
+if severity > 15 and 0 < (depletion_hour - current_hour) <= 4:
+    show_warning("Often runs low by {depletion_hour} on {day}s")
+```
+
+Both conditions must be true:
+1. **Severity > 15:** The pattern is real, not noise.
+2. **Within 4 hours:** The risk is imminent and actionable.
+
+### Step 4: Real-Time Prediction
 
 When the app runs, it:
 1. Fetches **live availability** from the Toronto Bike Share API.
@@ -126,7 +156,7 @@ When the app runs, it:
    - **MEDIUM:** Current availability is okay (>25%) OR improving.
    - **LOW:** Current availability is poor OR trend shows rapid depletion.
 
-### Step 4: Warnings
+### Step 5: Warnings
 
 If the Depletion Hour for a nearby station falls within the next 4 hours, and the Severity exceeds a threshold (>15 cumulative bikes lost), the app displays a warning:
 
