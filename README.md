@@ -6,6 +6,15 @@ A zero-latency, CLI-based dashboard for Toronto Bike Share commuters. Designed t
 
 ![Demo](assets/demo.png)
 
+## Table of Contents
+- [The Problem](#the-problem)
+- [The Solution](#the-solution)
+- [Installation](#installation)
+- [How It Works](#how-it-works)
+- [Customization](#customization)
+- [Case Study: Terminal Velocity](#terminal-velocity-solving-death-by-a-thousand-cuts-in-the-toronto-bike-share-experience)
+- [License](#license)
+
 ## The Problem
 The official mobile app is great for tourists but painful for daily commuters.
 - **Too many clicks:** 8-12 interactions just to check if you can get a bike.
