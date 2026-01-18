@@ -96,9 +96,6 @@ LOCATIONS = {
 }
 ```
 
-## License
-MIT License. Data provided by Toronto Open Data.
-
 ---
 
 # Terminal Velocity: Solving "Death by a Thousand Cuts" in the Toronto Bike Share Experience
@@ -251,3 +248,7 @@ We delivered a standalone executable command `bikes` that prints a dashboard to 
 By stripping away the map and focusing on the raw data needs of the commuter, we reduced a 12-step interaction process down to 2 seconds.
 
 The key learning is that **context is king**. Knowing "there are 5 bikes" is useless if you don't know that "5 bikes usually disappear in 10 minutes at this time of day." By fusing real-time API data with historical open data, we created a tool that doesn't just display information—it provides *intelligence*.
+
+
+## License
+MIT License. Data provided by Toronto Open Data.
