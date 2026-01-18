@@ -127,7 +127,7 @@ The most glaring omission in the current ecosystem is the lack of "glanceability
 *   **Home Screen:** No widget available.
 To get any information, the user *must* engage fully with the application.
 
-![Home Screen - No Widget](assets/current_no_widget.png)
+![Home Screen - No Widget](assets/clean_no_widget.png)
 *The blank canvas: No lock screen or home screen widgets mean every interaction starts from zero.*
 
 ### The Search & Disambiguation Friction
@@ -136,7 +136,7 @@ The search experience is designed for exact addresses, not station names or fuzz
 *   **Intersection Ambiguity:** To filter, the user must know the intersecting street (Simcoe). Even then, the app returns multiple pins ("Simcoe & Wellington" vs "Simcoe & Wellington South").
 *   **Pin Fatigue:** The user is forced to select a pin, verify it's the right one, and favorite it to avoid repeating this search.
 
-![Search Friction](assets/current_search_friction.png)
+![Search Friction](assets/clean_search_friction.png)
 *Searching for "Wellington" returns a list of addresses rather than stations. Which one is the station? The user has to guess.*
 
 ### The "Tap-to-Reveal" Pattern
@@ -144,10 +144,10 @@ The map view uses clustered pins that show a total number (e.g., "10").
 *   **Ambiguity:** Does "10" mean 10 bikes or 10 docks?
 *   **Hidden Detail:** To see the split (0 E-bikes, 10 Classic, 8 Docks), the user must tap the pin. This adds a physical interaction for a piece of data that should be top-level.
 
-![Map Overview](assets/current_map_clutter.png)
+![Map Overview](assets/clean_map_clutter.png)
 *The map view gives a high-level overview but hides critical details. Is "10" bikes or docks? You must tap to find out.*
 
-![Station Details](assets/current_hidden_details.png)
+![Station Details](assets/clean_hidden_details.png)
 *Tapping reveals the split, but this is 3-4 clicks deep into the journey. Granular details like E-bike availability are buried.*
 
 ## 5. User Journey Comparison
