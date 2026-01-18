@@ -137,7 +137,7 @@ The search experience is designed for exact addresses, not station names or fuzz
 *   **Pin Fatigue:** The user is forced to select a pin, verify it's the right one, and favorite it to avoid repeating this search.
 
 ![Search Friction](assets/current_search_friction.png)
-*Searching for "Wellington" returns a list of addresses rather than stations, forcing cognitive load.*
+*Searching for "Wellington" returns a list of addresses rather than stations. Which one is the station? The user has to guess.*
 
 ### The "Tap-to-Reveal" Pattern
 The map view uses clustered pins that show a total number (e.g., "10").
@@ -145,13 +145,10 @@ The map view uses clustered pins that show a total number (e.g., "10").
 *   **Hidden Detail:** To see the split (0 E-bikes, 10 Classic, 8 Docks), the user must tap the pin. This adds a physical interaction for a piece of data that should be top-level.
 
 ![Map Overview](assets/current_map_clutter.png)
-*The map view gives a high-level overview but hides the critical details needed for a decision.*
+*The map view gives a high-level overview but hides critical details. Is "10" bikes or docks? You must tap to find out.*
 
 ![Station Details](assets/current_hidden_details.png)
-*Tapping reveals the split, but this is 3-4 clicks deep into the journey.*
-
-![Favorites List](assets/current_hidden_details.png)
-*Even the Favorites list requires interpretation and navigation.*
+*Tapping reveals the split, but this is 3-4 clicks deep into the journey. Granular details like E-bike availability are buried.*
 
 ## 5. User Journey Comparison
 
