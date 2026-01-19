@@ -34,7 +34,6 @@ The official mobile app is great for tourists but painful for daily commuters.
 - **Smart Timing:** Dynamic *"Leave by 8:30 AM"* warnings when bikes are depleting
 - **Instant Availability:** Real-time counts for your home and work locations.
 - **Predictive Intelligence:** Uses historical data (5.3 million trips) to tell you if bikes are filling up or emptying out.
-- **Velocity Warnings:** *"Often runs low by 8:45 AM"*
 - **Granular Data:** Separates E-bikes from Classic bikes instantly.
 
 ## Key Features
