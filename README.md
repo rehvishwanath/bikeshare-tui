@@ -6,11 +6,11 @@ A zero-latency, CLI-based dashboard for Toronto Bike Share commuters. Designed t
 
 ### Watch the Demo
 
-[![Watch the video](https://img.youtube.com/vi/vKsHNcFMIC0/maxresdefault.jpg)](https://youtu.be/vKsHNcFMIC0)
+[Click here to watch the demo 📺](https://youtu.be/vKsHNcFMIC0)
 
-*Click the image above to watch a working demo of the app in action.*
+*Click the link above to watch a working demo of the app in action.*
 
-![Demo](assets/demo.png)
+<img src="assets/demo.png" width="70%" alt="Demo">
 
 ## Table of Contents
 - [The Problem](#the-problem)
