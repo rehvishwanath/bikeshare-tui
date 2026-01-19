@@ -1027,6 +1027,93 @@ def build_dashboard_group(data: dict) -> Group:
     return Group(*renderables)
 
 
+def render_json(data: dict):
+    """Render the dashboard data as JSON."""
+    print(json.dumps(data, indent=2))
+
+
+def render_swiftbar(data: dict):
+    """
+    Render the dashboard data in SwiftBar format.
+    Docs: https://github.com/swiftbar/SwiftBar#plugin-output-format
+    """
+    if "error" in data:
+        print(f"⚠️ Error | color=red")
+        print("---")
+        print(data['error'])
+        return
+
+    trip = data["trip_summary"]
+    confidence = trip["confidence"]
+    
+    # 1. Menu Bar Item (The "Traffic Light")
+    # Using SF Symbols: https://developer.apple.com/sf-symbols/
+    symbol = "bicycle"
+    color = "white"
+    
+    if confidence == "HIGH":
+        color = "green"
+    elif confidence == "MEDIUM":
+        color = "yellow"
+    else:
+        color = "red"
+        symbol = "exclamationmark.triangle"
+        
+    # The header line
+    print(f":{symbol}: {confidence} | sfimage={symbol} color={color}")
+    
+    print("---")
+    
+    # 2. Trip Summary Section
+    print(f"{trip['message']} | size=14 color={color}")
+    if trip.get('leave_by'):
+        print(f"Leave by: {trip['leave_by']} | size=12 color=orange")
+    print("---")
+    
+    # 3. Location Details
+    origin_name = data["direction"]["from"]
+    destination_name = data["direction"]["to"]
+    ordered_keys = [origin_name, destination_name]
+    
+    for loc_name in ordered_keys:
+        loc_data = data["locations"][loc_name]
+        is_origin = (loc_name == origin_name)
+        role = "START" if is_origin else "END"
+        emoji = loc_data["loc_data"]["emoji"]
+        
+        # Section Header
+        print(f"{emoji} {loc_name} ({role}) | size=13 font=Menlo color=white")
+        
+        # Prediction
+        pred = loc_data["prediction"]
+        if pred:
+            bike_status = f"Bikes: {pred['bike_likelihood']}"
+            dock_status = f"Docks: {pred['dock_likelihood']}"
+            print(f"{bike_status} • {dock_status} | size=11 color=gray")
+            
+            if pred.get('bike_warning'):
+                print(f"⚠️ {pred['bike_warning']} | size=11 color=orange")
+        
+        # Station List
+        for station in loc_data["nearby"]:
+            bikes = station["bikes_available"]
+            docks = station["docks_available"]
+            name = station["name"]
+            dist = format_distance(station["distance"])
+            
+            # Simple ASCII bar
+            # We can't use complex rich bars here, so we keep it simple
+            # 🚲 5  🔌 10  - Station Name (100m)
+            line = f"🚲 {bikes:<2} 🔌 {docks:<2} - {name} ({dist})"
+            print(f"{line} | font=Menlo size=11 trim=false")
+            
+        print("---")
+    
+    # Footer
+    print("Refresh | refresh=true")
+    print("Run Setup | shell=open param1='http://github.com/rehvishwanath/bikeshare-tui'")
+
+
 def main():
     """Main function to run the TUI."""
     
@@ -1034,13 +1121,13 @@ def main():
     parser = argparse.ArgumentParser(description="Toronto Bike Share TUI")
     parser.add_argument("--setup", action="store_true", help="Run setup wizard to configure locations")
     parser.add_argument("--once", action="store_true", help="Run once and exit (disable watch mode)")
+    parser.add_argument("--json", action="store_true", help="Output raw JSON data")
+    parser.add_argument("--swiftbar", action="store_true", help="Output SwiftBar plugin format")
     args = parser.parse_args()
     
     # Run setup if requested
     if args.setup:
         locations = run_setup_wizard()
-        # After setup, continue to dashboard? Or exit? 
-        # Usually better to exit so user can see it saved.
         return
     else:
         # Load config or fall back to default
@@ -1057,27 +1144,32 @@ def main():
                 }
     
     # Initial data fetch
-    with console.status("[bold blue]Loading dashboard data...", spinner="dots"):
+    # Only show spinner if running in interactive mode
+    is_interactive = not (args.json or args.swiftbar)
+    
+    if is_interactive:
+        with console.status("[bold blue]Loading dashboard data...", spinner="dots"):
+            data = get_dashboard_data(locations)
+    else:
         data = get_dashboard_data(locations)
     
     if not data:
         return
 
-    dashboard = build_dashboard_group(data)
-
-    if args.once:
-        console.print(dashboard)
+    # Render based on mode
+    if args.json:
+        render_json(data)
+    elif args.swiftbar:
+        render_swiftbar(data)
+    elif args.once:
+        console.print(build_dashboard_group(data))
     else:
         # Watch Mode (Default)
         # Use Live to update the screen
         try:
-            with Live(dashboard, console=console, screen=True, refresh_per_second=4) as live:
+            with Live(build_dashboard_group(data), console=console, screen=True, refresh_per_second=4) as live:
                 while True:
                     time.sleep(60)  # Refresh every 60 seconds
-                    
-                    # Fetch new data
-                    # We accept that the UI might 'freeze' slightly during the fetch
-                    # In a more complex app we'd use threads, but for this it's fine
                     data = get_dashboard_data(locations)
                     if data:
                         live.update(build_dashboard_group(data))

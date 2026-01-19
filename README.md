@@ -106,6 +106,18 @@ ln -s $(pwd)/src/bikes.py /usr/local/bin/bikes
 
 Now you can just type `bikes` (or `bikes --setup`) from any terminal.
 
+## Menu Bar App (macOS)
+
+You can put the dashboard right in your menu bar using **SwiftBar**.
+
+1.  **Install SwiftBar:** [Download from GitHub](https://github.com/swiftbar/SwiftBar/releases)
+2.  **Run the Installer:**
+    ```bash
+    ./scripts/install_swiftbar.sh
+    ```
+    
+This creates a plugin that runs `bikes --swiftbar` every minute. You'll see a bicycle icon (🟢/🟡/🔴) indicating the status of your commute.
+
 ## How It Works
 
 ### 1. Real-Time Data
