@@ -336,6 +336,43 @@ With the absolute floor applied to the Fort York example:
 
 This better reflects reality: 18 bikes is enough, even if the percentage looks low.
 
+### What About Docks? Bikes vs Docks Comparison
+
+The absolute floor applies to **both** bikes and docks, but the reasoning differs slightly.
+
+| Factor | Bikes | Docks |
+|--------|-------|-------|
+| **Damage rate** | ~10% (flat tires, broken seats, stuck pedals) | ~1-2% (payment terminal issues, stuck locking mechanisms) |
+| **Race condition** | Others grabbing bikes while you walk | Others docking while you arrive |
+| **Failure consequence** | Walk or wait | **Overtime fees** ($4/30min after grace period) |
+| **Recovery options** | Walk to next station, wait for rebalancing | Must dock *somewhere* or pay fees |
+
+**Why docks have lower damage rate:**
+- Docks are simpler mechanical systems (just a locking slot + sensor)
+- No moving parts that wear out from riding
+- Weather damage is less impactful (no exposed chains, tires, seats)
+
+**Why dock failure is worse:**
+- With bikes: you haven't started your trip yet. Worst case = walk or wait.
+- With docks: you're *mid-trip*. If you can't dock, the meter keeps running.
+- Toronto Bike Share charges $4 per 30 minutes after the 30-minute grace period.
+- Riding to the next station takes time, potentially pushing you past the grace period.
+
+**The Decision: Same Floor of 5 for Docks**
+
+Despite the lower damage rate, we keep the floor at 5 for docks because:
+
+1. **Consequence severity:** Overtime fees are a worse outcome than walking to get a bike
+2. **Simplicity:** One floor value is easier to reason about and maintain
+3. **Conservative approach:** For something with worse failure consequences, we'd rather be more conservative, not less
+
+**Implementation:**
+```python
+# Same floor logic for docks
+if total_docks >= 5 and dock_likelihood == "LOW":
+    dock_likelihood = "MEDIUM"  # Override: enough absolute docks
+```
+
 ---
 
 ## Step 5: Warnings
@@ -345,6 +382,96 @@ If the Depletion Hour for a nearby station falls within the next 4 hours, and th
 > "Often runs low by 4 PM on Fridays"
 
 This gives the commuter advance notice to leave earlier or pick a different station.
+
+---
+
+## Step 6: Trip Confidence (Combined Prediction)
+
+While individual bike and dock likelihoods are useful, commuters need a single answer: **"Should I bike today?"**
+
+The Trip Confidence combines origin bike likelihood and destination dock likelihood into one signal.
+
+### The Problem with Separate Predictions
+
+A commuter sees:
+- Home: Bikes = MEDIUM, Docks = HIGH
+- Work: Bikes = HIGH, Docks = LOW
+
+What does this mean for their morning commute? They need to mentally:
+1. Realize morning = home → work
+2. Extract "bikes at home" (MEDIUM) and "docks at work" (LOW)
+3. Synthesize these into a decision
+
+The Trip Confidence does this automatically.
+
+### Combining Likelihoods: Weighted Average with Gating
+
+**Why not just take the minimum?**
+Taking the lower of (bikes, docks) treats them as equally important. But they're not:
+- **Bikes at origin:** Gating factor. No bikes = no trip.
+- **Docks at destination:** Important but recoverable. No docks = ride to next station.
+
+**The Formula:**
+
+```python
+# Convert to scores
+SCORES = {"HIGH": 3, "MEDIUM": 2, "LOW": 1}
+
+# Gating rule: LOW bikes = LOW trip
+if bike_likelihood == "LOW":
+    return "LOW"
+
+# Weighted average
+BIKE_WEIGHT = 0.6
+DOCK_WEIGHT = 0.4
+
+trip_score = (bike_score * BIKE_WEIGHT) + (dock_score * DOCK_WEIGHT)
+
+# Convert back
+if trip_score >= 2.5:
+    return "HIGH"
+elif trip_score >= 1.8:
+    return "MEDIUM"
+else:
+    return "LOW"
+```
+
+### Threshold Rationale
+
+| Threshold | Value | Effect |
+|-----------|-------|--------|
+| HIGH | ≥ 2.5 | Requires HIGH/HIGH (3.0) or HIGH/MEDIUM (2.6) |
+| MEDIUM | ≥ 1.8 | Allows MEDIUM/MEDIUM (2.0), HIGH/LOW (2.2), MEDIUM/HIGH (2.4) |
+| LOW | < 1.8 | MEDIUM/LOW (1.6) or gating rule |
+
+### Complete Combination Matrix
+
+| Origin Bikes | Dest. Docks | Calculation | Score | Trip |
+|--------------|-------------|-------------|-------|------|
+| LOW | * | Gating rule | — | **LOW** |
+| MEDIUM | LOW | 1.2 + 0.4 | 1.6 | **LOW** |
+| MEDIUM | MEDIUM | 1.2 + 0.8 | 2.0 | **MEDIUM** |
+| MEDIUM | HIGH | 1.2 + 1.2 | 2.4 | **MEDIUM** |
+| HIGH | LOW | 1.8 + 0.4 | 2.2 | **MEDIUM** |
+| HIGH | MEDIUM | 1.8 + 0.8 | 2.6 | **HIGH** |
+| HIGH | HIGH | 1.8 + 1.2 | 3.0 | **HIGH** |
+
+### Dynamic "Leave By" Time
+
+When trip confidence is MEDIUM due to trending-down bikes, the app calculates a "leave by" time:
+
+```python
+bikes_above_floor = current_bikes - ABSOLUTE_FLOOR  # e.g., 11 - 5 = 6
+hours_until_floor = bikes_above_floor / loss_rate   # e.g., 6 / 3 = 2 hours
+leave_by = current_time + hours_until_floor - 30_minutes_buffer
+```
+
+This is only shown if:
+- Net flow is negative (bikes are depleting)
+- Leave by time is within 1 hour (imminent urgency)
+- Leave by time hasn't already passed
+
+**For detailed design documentation, see:** [Trip Summary Feature](./Trip_Summary_Feature.md)
 
 ---
 

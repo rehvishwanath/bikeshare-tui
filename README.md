@@ -4,6 +4,12 @@
 
 A zero-latency, CLI-based dashboard for Toronto Bike Share commuters. Designed to solve the "death by a thousand cuts" friction of using the official mobile app for daily commutes.
 
+### Watch the Demo
+
+[![Watch the video](https://img.youtube.com/vi/vKsHNcFMIC0/maxresdefault.jpg)](https://youtu.be/vKsHNcFMIC0)
+
+*Click the image above to watch a working demo of the app in action.*
+
 ![Demo](assets/demo.png)
 
 ## Table of Contents
@@ -47,9 +53,15 @@ The official mobile app is great for tourists but painful for daily commuters.
    pip install -r requirements.txt
    ```
 
-3. Run it:
+3. **Configure your locations:**
+   Run the setup wizard to pinpoint your Home and Work addresses (no API keys required):
    ```bash
-   python3 bikes.py
+   python3 src/bikes.py --setup
+   ```
+
+4. Run it:
+   ```bash
+   python3 src/bikes.py
    ```
 
 ### Make it a global command
@@ -57,11 +69,11 @@ The official mobile app is great for tourists but painful for daily commuters.
 To run `bikes` from anywhere:
 
 ```bash
-chmod +x bikes.py
-ln -s $(pwd)/bikes.py /usr/local/bin/bikes
-# OR add an alias to your shell profile
-alias bikes="python3 $(pwd)/bikes.py"
+chmod +x src/bikes.py
+ln -s $(pwd)/src/bikes.py /usr/local/bin/bikes
 ```
+
+Now you can just type `bikes` (or `bikes --setup`) from any terminal.
 
 ## How It Works
 
@@ -88,19 +100,27 @@ The "High/Medium/Low" likelihood isn't just a guess. It combines:
 
 ## Customization
 
-Open `bikes.py` and edit the `LOCATIONS` dictionary to add your own favorite spots:
+The easiest way to customize your locations is to run the setup wizard:
 
-```python
-LOCATIONS = {
+```bash
+bikes --setup
+```
+
+This saves your settings to `~/.bikes_config.json`. You can edit this file directly if you want to tweak coordinates manually.
+
+```json
+{
     "Home": {
-        "lat": 43.6395,
-        "lon": -79.3960,
-        "emoji": "🏠"
+        "lat": 43.6375,
+        "lon": -79.4030,
+        "emoji": "🏠",
+        "address": "215 Fort York Boulevard"
     },
-    "Office": {
-        "lat": 43.6472,
-        "lon": -79.3815,
-        "emoji": "🏢"
+    "Work": {
+        "lat": 43.6458,
+        "lon": -79.3854,
+        "emoji": "🏢",
+        "address": "155 Wellington Street West"
     }
 }
 ```

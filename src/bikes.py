@@ -6,10 +6,14 @@ with historical pattern-based predictions for likelihood of finding bikes/docks.
 """
 
 import urllib.request
+import urllib.parse
 import json
 import math
 import os
+import sys
+import argparse
 from datetime import datetime
+from typing import Optional
 from rich.console import Console, Group
 from rich.table import Table
 from rich.panel import Panel
@@ -28,13 +32,13 @@ PREDICTIONS_FILE = os.path.join(SCRIPT_DIR, "..", "data", "station_patterns.json
 # Target locations (approximate coordinates)
 LOCATIONS = {
     "215 Fort York Blvd": {
-        "lat": 43.6395,
-        "lon": -79.3960,
+        "lat": 43.6375,
+        "lon": -79.4030,
         "emoji": "🏠"
     },
     "155 Wellington St (RBC Centre)": {
-        "lat": 43.6472,
-        "lon": -79.3815,
+        "lat": 43.6458,
+        "lon": -79.3854,
         "emoji": "🏢"
     }
 }
@@ -49,11 +53,177 @@ NUM_PREDICTION_STATIONS = 2
 ABSOLUTE_BIKE_FLOOR = 5
 ABSOLUTE_DOCK_FLOOR = 5
 
+# Trip confidence calculation
+TRIP_BIKE_WEIGHT = 0.6  # Bikes are more important (gating factor)
+TRIP_DOCK_WEIGHT = 0.4  # Docks matter less (can ride to nearby station)
+TRIP_HIGH_THRESHOLD = 2.5
+TRIP_MEDIUM_THRESHOLD = 1.8
+
+# "Leave by" calculation
+LEAVE_BY_BUFFER_MINUTES = 30  # Buffer time before hitting the floor
+LEAVE_BY_MAX_HOURS = 1  # Only show "leave by" if within this many hours
+
 # Day name mapping
 DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_FULL_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
+# Config
+CONFIG_FILE = os.path.expanduser("~/.bikes_config.json")
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+USER_AGENT = "TorontoBikeShareTUI/1.0"
+
 console = Console()
+
+
+def load_config() -> dict:
+    """Load configuration from JSON file."""
+    if not os.path.exists(CONFIG_FILE):
+        return None
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def save_config(locations: dict):
+    """Save configuration to JSON file."""
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(locations, f, indent=4)
+        console.print(f"[green]Configuration saved to {CONFIG_FILE}[/]")
+    except Exception as e:
+        console.print(f"[bold red]Error saving config:[/] {e}")
+
+
+def geocode_address(query: str) -> Optional[dict]:
+    """
+    Geocode an address using OpenStreetMap Nominatim API.
+    Returns dict with 'lat', 'lon', 'display_name' or None.
+    """
+    params = {
+        'q': query,
+        'format': 'json',
+        'addressdetails': 1,
+        'limit': 1,
+        # Bias results towards Toronto
+        'viewbox': '-79.63,43.58,-79.11,43.85',
+        'bounded': 1
+    }
+    
+    url = f"{NOMINATIM_URL}?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+    
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            if not data:
+                return None
+            return data[0]
+    except Exception as e:
+        console.print(f"[bold red]Geocoding error:[/] {e}")
+        return None
+
+
+def format_address_result(result: dict) -> str:
+    """
+    Format the address result to be user-friendly.
+    Extracts house_number, road, and postcode.
+    """
+    address = result.get('address', {})
+    parts = []
+    
+    # Try to find specific parts
+    house = address.get('house_number')
+    road = address.get('road')
+    postcode = address.get('postcode')
+    building = address.get('building')
+    
+    if building:
+        parts.append(building)
+        
+    if house and road:
+        parts.append(f"{house} {road}")
+    elif road:
+        parts.append(road)
+    elif result.get('display_name'):
+        # Fallback to first few parts of display name
+        return ", ".join(result['display_name'].split(", ")[:2])
+        
+    if postcode:
+        parts.append(postcode)
+        
+    if not parts:
+        return result.get('display_name', 'Unknown Location')
+        
+    return ", ".join(parts)
+
+
+def run_setup_wizard() -> dict:
+    """Run interactive setup wizard to configure locations."""
+    console.print(Panel("[bold]🛠️  Bike Share Setup Wizard[/]", border_style="blue"))
+    console.print("We'll find your exact location to show the closest stations.\n")
+    
+    locations = {}
+    
+    # 1. Home Location
+    console.print("[bold cyan]Step 1: Home Location (Start of day)[/]")
+    while True:
+        query = console.input("Enter address (e.g. '215 Fort York Blvd'): ").strip()
+        if not query:
+            continue
+            
+        with console.status("Searching...", spinner="dots"):
+            result = geocode_address(query)
+            
+        if not result:
+            console.print("[red]Location not found. Please try again with more detail.[/]")
+            continue
+            
+        formatted = format_address_result(result)
+        console.print(f"Found: [bold green]{formatted}[/]")
+        
+        confirm = console.input("Is this correct? [Y/n] ").lower()
+        if confirm == '' or confirm == 'y':
+            locations["Home"] = {
+                "lat": float(result['lat']),
+                "lon": float(result['lon']),
+                "emoji": "🏠",
+                "address": formatted
+            }
+            break
+    
+    console.print()
+    
+    # 2. Work Location
+    console.print("[bold cyan]Step 2: Work Location (End of day)[/]")
+    while True:
+        query = console.input("Enter address (e.g. '155 Wellington St W'): ").strip()
+        if not query:
+            continue
+            
+        with console.status("Searching...", spinner="dots"):
+            result = geocode_address(query)
+            
+        if not result:
+            console.print("[red]Location not found. Please try again with more detail.[/]")
+            continue
+            
+        formatted = format_address_result(result)
+        console.print(f"Found: [bold green]{formatted}[/]")
+        
+        confirm = console.input("Is this correct? [Y/n] ").lower()
+        if confirm == '' or confirm == 'y':
+            locations["Work"] = {
+                "lat": float(result['lat']),
+                "lon": float(result['lon']),
+                "emoji": "🏢",
+                "address": formatted
+            }
+            break
+            
+    save_config(locations)
+    return locations
 
 
 def load_predictions() -> dict:
@@ -342,6 +512,120 @@ def get_likelihood_style(likelihood: str) -> tuple[str, str]:
         return "bold red", "✗"
 
 
+def likelihood_to_score(likelihood: str) -> int:
+    """Convert likelihood string to numeric score."""
+    return {"HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(likelihood, 1)
+
+
+def score_to_likelihood(score: float) -> str:
+    """Convert numeric score back to likelihood string."""
+    if score >= TRIP_HIGH_THRESHOLD:
+        return "HIGH"
+    elif score >= TRIP_MEDIUM_THRESHOLD:
+        return "MEDIUM"
+    else:
+        return "LOW"
+
+
+def calculate_trip_confidence(bike_likelihood: str, dock_likelihood: str) -> str:
+    """
+    Calculate overall trip confidence from bike and dock likelihoods.
+    
+    - Gating rule: LOW bikes = LOW trip (can't start without a bike)
+    - Otherwise: weighted average (60% bikes, 40% docks)
+    """
+    # Gating rule: if bikes are LOW, trip is LOW regardless of docks
+    if bike_likelihood == "LOW":
+        return "LOW"
+    
+    # Weighted average
+    bike_score = likelihood_to_score(bike_likelihood)
+    dock_score = likelihood_to_score(dock_likelihood)
+    trip_score = (bike_score * TRIP_BIKE_WEIGHT) + (dock_score * TRIP_DOCK_WEIGHT)
+    
+    return score_to_likelihood(trip_score)
+
+
+def calculate_leave_by_time(current_bikes: int, net_flow_bikes: float, current_hour: int, current_minute: int) -> Optional[str]:
+    """
+    Calculate the "leave by" time based on current bikes and flow rate.
+    
+    Returns a formatted time string (e.g., "8:30 AM") or None if:
+    - Net flow is not negative (bikes not depleting)
+    - Leave by time is more than 1 hour away
+    - Leave by time has already passed
+    """
+    # Only calculate if bikes are trending down
+    if net_flow_bikes >= 0:
+        return None
+    
+    # How many bikes above the floor?
+    bikes_above_floor = current_bikes - ABSOLUTE_BIKE_FLOOR
+    if bikes_above_floor <= 0:
+        return None  # Already at or below floor
+    
+    # How long until we hit the floor?
+    loss_rate = abs(net_flow_bikes)
+    if loss_rate == 0:
+        return None
+    
+    hours_until_floor = bikes_above_floor / loss_rate
+    
+    # Convert to minutes for easier calculation
+    current_time_minutes = current_hour * 60 + current_minute
+    depletion_time_minutes = current_time_minutes + (hours_until_floor * 60)
+    leave_by_minutes = depletion_time_minutes - LEAVE_BY_BUFFER_MINUTES
+    
+    # Check if leave by time is in the past
+    if leave_by_minutes <= current_time_minutes:
+        return None  # Already passed
+    
+    # Check if leave by time is more than 1 hour away
+    minutes_until_leave_by = leave_by_minutes - current_time_minutes
+    if minutes_until_leave_by > LEAVE_BY_MAX_HOURS * 60:
+        return None  # Too far in the future
+    
+    # Convert back to hours and minutes
+    leave_by_hour = int(leave_by_minutes // 60) % 24
+    leave_by_minute = int(leave_by_minutes % 60)
+    
+    # Format as 12-hour time
+    if leave_by_hour == 0:
+        time_str = f"12:{leave_by_minute:02d} AM"
+    elif leave_by_hour == 12:
+        time_str = f"12:{leave_by_minute:02d} PM"
+    elif leave_by_hour < 12:
+        time_str = f"{leave_by_hour}:{leave_by_minute:02d} AM"
+    else:
+        time_str = f"{leave_by_hour - 12}:{leave_by_minute:02d} PM"
+    
+    return time_str
+
+
+def get_trip_message(trip_confidence: str, bike_likelihood: str, dock_likelihood: str, 
+                     leave_by_time: Optional[str], is_morning: bool) -> str:
+    """
+    Generate the trip summary message based on confidence and conditions.
+    """
+    destination = "work" if is_morning else "home"
+    
+    if trip_confidence == "LOW":
+        return "Consider transit/walking"
+    
+    if trip_confidence == "HIGH":
+        return "Safe to bike"
+    
+    # MEDIUM cases
+    if bike_likelihood == "HIGH" and dock_likelihood == "LOW":
+        return f"Docks may be tight at {destination}"
+    
+    # MEDIUM bikes cases - check for "leave by" time
+    if leave_by_time:
+        return f"Safe to bike, but leave by {leave_by_time}"
+    
+    return "Safe to bike"
+
+
 def create_prediction_panel(prediction: dict) -> Text:
     """Create the prediction display."""
     if not prediction:
@@ -452,6 +736,72 @@ def create_location_panel(location_name: str, location_data: dict,
     )
 
 
+def create_trip_summary(origin_prediction: dict, destination_prediction: dict, 
+                        origin_bikes: int, is_morning: bool) -> Panel:
+    """
+    Create the trip summary panel that appears at the top.
+    
+    Args:
+        origin_prediction: Prediction data for origin location (where you get bikes)
+        destination_prediction: Prediction data for destination (where you dock)
+        origin_bikes: Total bikes available at origin (closest 2 stations)
+        is_morning: True if before noon (home->work), False if afternoon (work->home)
+    """
+    now = datetime.now()
+    
+    # Get likelihoods
+    bike_likelihood = origin_prediction.get("bike_likelihood", "LOW") if origin_prediction else "LOW"
+    dock_likelihood = destination_prediction.get("dock_likelihood", "LOW") if destination_prediction else "LOW"
+    net_flow_bikes = origin_prediction.get("net_flow_bikes", 0) if origin_prediction else 0
+    
+    # Calculate trip confidence
+    trip_confidence = calculate_trip_confidence(bike_likelihood, dock_likelihood)
+    
+    # Calculate leave by time (only if bikes trending down)
+    leave_by_time = calculate_leave_by_time(
+        origin_bikes, 
+        net_flow_bikes,
+        now.hour,
+        now.minute
+    )
+    
+    # Get the message
+    message = get_trip_message(trip_confidence, bike_likelihood, dock_likelihood, 
+                               leave_by_time, is_morning)
+    
+    # Style based on confidence
+    if trip_confidence == "HIGH":
+        style = "bold green"
+    elif trip_confidence == "MEDIUM":
+        style = "bold yellow"
+    else:
+        style = "bold red"
+    
+    # Build the text
+    trip_text = Text()
+    trip_text.append("Trip: ", style="bold white")
+    trip_text.append(f"{trip_confidence}", style=style)
+    trip_text.append(" - ", style="dim")
+    trip_text.append(message, style=style)
+    
+    # Add direction indicator
+    direction = "Home → Work" if is_morning else "Work → Home"
+    direction_text = Text()
+    direction_text.append(f"({direction})", style="dim italic")
+    
+    content = Text()
+    content.append_text(trip_text)
+    content.append("  ")
+    content.append_text(direction_text)
+    
+    return Panel(
+        Align.center(content),
+        box=box.ROUNDED,
+        border_style=style.replace("bold ", ""),
+        padding=(0, 2)
+    )
+
+
 def create_header() -> Panel:
     """Create the header panel."""
     now = datetime.now()
@@ -513,6 +863,28 @@ def create_legend() -> Panel:
 def main():
     """Main function to run the TUI."""
     
+    # Parse arguments
+    parser = argparse.ArgumentParser(description="Toronto Bike Share TUI")
+    parser.add_argument("--setup", action="store_true", help="Run setup wizard to configure locations")
+    args = parser.parse_args()
+    
+    # Run setup if requested
+    if args.setup:
+        locations = run_setup_wizard()
+    else:
+        # Load config or fall back to default
+        locations = load_config()
+        if not locations:
+            # Fallback to defaults
+            locations = LOCATIONS
+            # Remap to Home/Work keys for consistency if using defaults
+            # (The defaults use address as key, but wizard uses "Home"/"Work")
+            if "215 Fort York Blvd" in locations:
+                locations = {
+                    "Home": locations["215 Fort York Blvd"],
+                    "Work": locations["155 Wellington St (RBC Centre)"]
+                }
+    
     # Load predictions
     predictions = None
     with console.status("[bold blue]Loading prediction data...", spinner="dots"):
@@ -525,9 +897,28 @@ def main():
             console.print(f"[bold red]Error fetching data:[/] {e}")
             return
     
-    # Find nearby stations for each location
-    location_panels = []
-    for loc_name, loc_data in LOCATIONS.items():
+    # Determine trip direction based on time of day
+    now = datetime.now()
+    is_morning = now.hour < 12  # Before noon = home -> work
+    
+    # Set origin and destination keys
+    # Note: Config uses "Home" and "Work" keys
+    if is_morning:
+        origin_name = "Home"
+        destination_name = "Work"
+    else:
+        origin_name = "Work"
+        destination_name = "Home"
+    
+    # Find nearby stations for each location and store data
+    location_data = {}
+    
+    # Ensure we have Home and Work keys
+    if "Home" not in locations or "Work" not in locations:
+        console.print("[red]Configuration error: Missing Home or Work location. Please run with --setup[/]")
+        return
+
+    for loc_name, loc_data in locations.items():
         nearby = find_nearby_stations(
             loc_data["lat"], loc_data["lon"],
             stations_info, stations_status,
@@ -537,12 +928,49 @@ def main():
         # Get predictions for this location's stations
         prediction = get_prediction_for_stations(nearby, predictions)
         
-        panel = create_location_panel(loc_name, loc_data, nearby, prediction)
+        # Calculate total bikes at closest prediction stations
+        prediction_stations = nearby[:NUM_PREDICTION_STATIONS]
+        total_bikes = sum(s["bikes_available"] for s in prediction_stations)
+        
+        location_data[loc_name] = {
+            "loc_data": loc_data,
+            "nearby": nearby,
+            "prediction": prediction,
+            "total_bikes": total_bikes
+        }
+    
+    # Get origin and destination data for trip summary
+    origin_data = location_data[origin_name]
+    destination_data = location_data[destination_name]
+    
+    # Create trip summary
+    trip_summary = create_trip_summary(
+        origin_prediction=origin_data["prediction"],
+        destination_prediction=destination_data["prediction"],
+        origin_bikes=origin_data["total_bikes"],
+        is_morning=is_morning
+    )
+    
+    # Create location panels
+    # Force order: Home then Work (or Origin then Destination?)
+    # Let's show Origin first (top), then Destination
+    ordered_keys = [origin_name, destination_name]
+    
+    location_panels = []
+    for loc_name in ordered_keys:
+        data = location_data[loc_name]
+        # Use address as title if available, otherwise just "Home"/"Work"
+        title = data["loc_data"].get("address", loc_name)
+        panel = create_location_panel(title, data["loc_data"], data["nearby"], data["prediction"])
         location_panels.append(panel)
     
     # Print the TUI
     console.print()
     console.print(create_header())
+    console.print()
+    
+    # Trip summary at the top
+    console.print(trip_summary)
     console.print()
     
     for panel in location_panels:
