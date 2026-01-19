@@ -75,3 +75,43 @@ Now that we have a function that returns a Python Dictionary (`{ "home_bikes": 5
 *   **Mobile:** An iOS widget reads the JSON and draws its own green bar using native graphics.
 
 **Summary:** We separated the **Chef** (Logic) from the **Waiter** (Display). Before, the Chef was bringing the food to the table himself. Now, the Chef just cooks, and we can hire a Waiter (Terminal) or a Delivery Driver (Mobile App) to serve it.
+
+---
+
+## 4. Script vs. Application: The Mental Model
+
+A key question arose during our refactor: *What makes this an "Application" now? Is it just a script that loops?*
+
+While technically it is a loop, the distinction lies in the architectural intent.
+
+### The Script (Procedural)
+*   **Mental Model:** A Checklist.
+*   **Action:** "Fetch data. Print data. Exit."
+*   **Characteristics:** It has a start and an end. It is short-lived. To refresh the data, you must restart the checklist from step 1.
+
+### The Application (System)
+*   **Mental Model:** A Robot.
+*   **Action:** "Stand in the kitchen. Every 60 seconds, check the sensors. Update the display."
+*   **Characteristics:** It has a **Lifecycle** and **State**. It is alive and reacting to time.
+
+### The Cornerstone: Separation of Concerns
+Is Separation of Concerns (SoC) just for applications? No, but it is the cornerstone that allows a script to *become* a system.
+*   Because we separated `get_dashboard_data` (The Logic) from `build_dashboard_group` (The UI), our code assumes **growth and change**.
+*   Today the "View" is a Terminal. Tomorrow it could be a Web Server. The "Model" doesn't care.
+
+---
+
+## 5. The Architecture of Our Loop
+
+We moved from a linear flow to a **Model-View-Controller (MVC)** pattern inside a loop:
+
+1.  **The Controller (`main`)**: The Boss. It orchestrates the lifecycle. It doesn't know how to fetch data or draw pixels. It just manages the schedule.
+2.  **The Model (`get_dashboard_data`)**: The Brain. It performs the heavy lifting (API calls, math) and returns raw data (Dictionaries). It has no idea a screen exists.
+3.  **The View (`build_dashboard_group`)**: The Artist. It takes raw data and builds a visual blueprint (Rich objects).
+4.  **The Engine (`Live` Manager)**: The Painter. It takes the blueprint and renders it to the screen using **Double Buffering**.
+
+### Double Buffering (The "No Flicker" Trick)
+Why does the new version look so smooth?
+*   **Direct Printing:** Like writing on a whiteboard with a marker. To update, you must erase (flicker) and rewrite.
+*   **Live Manager:** Like having two whiteboards. The engine draws the new frame on a hidden board, then instantly swaps it with the visible one. The user never sees the "drawing" process, only the result.
+
