@@ -12,6 +12,7 @@ import math
 import os
 import sys
 import argparse
+import time
 from datetime import datetime
 from typing import Optional
 from rich.console import Console, Group
@@ -20,6 +21,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import box
 from rich.align import Align
+from rich.live import Live
 
 # API endpoints
 STATION_INFO_URL = "https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_information"
@@ -860,43 +862,20 @@ def create_legend() -> Panel:
     )
 
 
-def main():
-    """Main function to run the TUI."""
-    
-    # Parse arguments
-    parser = argparse.ArgumentParser(description="Toronto Bike Share TUI")
-    parser.add_argument("--setup", action="store_true", help="Run setup wizard to configure locations")
-    args = parser.parse_args()
-    
-    # Run setup if requested
-    if args.setup:
-        locations = run_setup_wizard()
-    else:
-        # Load config or fall back to default
-        locations = load_config()
-        if not locations:
-            # Fallback to defaults
-            locations = LOCATIONS
-            # Remap to Home/Work keys for consistency if using defaults
-            # (The defaults use address as key, but wizard uses "Home"/"Work")
-            if "215 Fort York Blvd" in locations:
-                locations = {
-                    "Home": locations["215 Fort York Blvd"],
-                    "Work": locations["155 Wellington St (RBC Centre)"]
-                }
-    
+def get_dashboard_data(locations: dict) -> Optional[dict]:
+    """
+    Fetch all data and calculate predictions for the dashboard.
+    Returns a dictionary structure suitable for rendering or JSON output.
+    """
     # Load predictions
-    predictions = None
-    with console.status("[bold blue]Loading prediction data...", spinner="dots"):
-        predictions = load_predictions()
+    predictions = load_predictions()
     
-    with console.status("[bold blue]Fetching live bike share data...", spinner="dots"):
-        try:
-            stations_info, stations_status = get_station_data()
-        except Exception as e:
-            console.print(f"[bold red]Error fetching data:[/] {e}")
-            return
-    
+    # Fetch live data
+    try:
+        stations_info, stations_status = get_station_data()
+    except Exception as e:
+        return {"error": f"Error fetching data: {e}"}
+
     # Determine trip direction based on time of day
     now = datetime.now()
     is_morning = now.hour < 12  # Before noon = home -> work
@@ -910,14 +889,13 @@ def main():
         origin_name = "Work"
         destination_name = "Home"
     
+    # Ensure we have Home and Work keys
+    if "Home" not in locations or "Work" not in locations:
+        return {"error": "Configuration error: Missing Home or Work location. Please run with --setup"}
+
     # Find nearby stations for each location and store data
     location_data = {}
     
-    # Ensure we have Home and Work keys
-    if "Home" not in locations or "Work" not in locations:
-        console.print("[red]Configuration error: Missing Home or Work location. Please run with --setup[/]")
-        return
-
     for loc_name, loc_data in locations.items():
         nearby = find_nearby_stations(
             loc_data["lat"], loc_data["lon"],
@@ -943,54 +921,168 @@ def main():
     origin_data = location_data[origin_name]
     destination_data = location_data[destination_name]
     
-    # Create trip summary
-    trip_summary = create_trip_summary(
-        origin_prediction=origin_data["prediction"],
-        destination_prediction=destination_data["prediction"],
-        origin_bikes=origin_data["total_bikes"],
-        is_morning=is_morning
+    # Calculate trip confidence
+    # We need to recreate the logic from create_trip_summary here to return raw data
+    
+    origin_prediction = origin_data["prediction"]
+    destination_prediction = destination_data["prediction"]
+    origin_bikes = origin_data["total_bikes"]
+    
+    # Get likelihoods
+    bike_likelihood = origin_prediction.get("bike_likelihood", "LOW") if origin_prediction else "LOW"
+    dock_likelihood = destination_prediction.get("dock_likelihood", "LOW") if destination_prediction else "LOW"
+    net_flow_bikes = origin_prediction.get("net_flow_bikes", 0) if origin_prediction else 0
+    
+    # Calculate trip confidence
+    trip_confidence = calculate_trip_confidence(bike_likelihood, dock_likelihood)
+    
+    # Calculate leave by time (only if bikes trending down)
+    leave_by_time = calculate_leave_by_time(
+        origin_bikes, 
+        net_flow_bikes,
+        now.hour,
+        now.minute
     )
     
-    # Create location panels
-    # Force order: Home then Work (or Origin then Destination?)
-    # Let's show Origin first (top), then Destination
+    # Get the message
+    message = get_trip_message(trip_confidence, bike_likelihood, dock_likelihood, 
+                               leave_by_time, is_morning)
+    
+    # Calculate station stats
+    total_stations = len([s for s in stations_status.values() if s.get("status") == "IN_SERVICE"])
+    data_source = predictions.get('metadata', {}).get('data_source', 'historical data') if predictions else "unknown"
+
+    return {
+        "timestamp": now.isoformat(),
+        "is_morning": is_morning,
+        "direction": {
+            "from": origin_name,
+            "to": destination_name
+        },
+        "trip_summary": {
+            "confidence": trip_confidence,
+            "message": message,
+            "leave_by": leave_by_time,
+            "bike_likelihood": bike_likelihood,
+            "dock_likelihood": dock_likelihood
+        },
+        "locations": location_data,
+        "meta": {
+            "total_stations": total_stations,
+            "prediction_source": data_source
+        }
+    }
+
+
+def build_dashboard_group(data: dict) -> Group:
+    """
+    Build the Rich renderable group for the dashboard.
+    Returns a Group object that can be printed or used in Live display.
+    """
+    if "error" in data:
+        return Group(Text(data['error'], style="red"))
+
+    renderables = []
+
+    # Header
+    renderables.append(create_header())
+    renderables.append(Text(""))  # Spacer
+    
+    # Trip summary
+    origin_name = data["direction"]["from"]
+    destination_name = data["direction"]["to"]
+    
+    trip_panel = create_trip_summary(
+        origin_prediction=data["locations"][origin_name]["prediction"],
+        destination_prediction=data["locations"][destination_name]["prediction"],
+        origin_bikes=data["locations"][origin_name]["total_bikes"],
+        is_morning=data["is_morning"]
+    )
+    renderables.append(trip_panel)
+    renderables.append(Text(""))
+    
+    # Location panels
+    # Force order: Origin then Destination
     ordered_keys = [origin_name, destination_name]
     
-    location_panels = []
     for loc_name in ordered_keys:
-        data = location_data[loc_name]
+        loc_data = data["locations"][loc_name]
         # Use address as title if available, otherwise just "Home"/"Work"
-        title = data["loc_data"].get("address", loc_name)
-        panel = create_location_panel(title, data["loc_data"], data["nearby"], data["prediction"])
-        location_panels.append(panel)
+        title = loc_data["loc_data"].get("address", loc_name)
+        panel = create_location_panel(title, loc_data["loc_data"], loc_data["nearby"], loc_data["prediction"])
+        renderables.append(panel)
+        renderables.append(Text(""))
     
-    # Print the TUI
-    console.print()
-    console.print(create_header())
-    console.print()
+    renderables.append(create_legend())
+    renderables.append(Text(""))
     
-    # Trip summary at the top
-    console.print(trip_summary)
-    console.print()
-    
-    for panel in location_panels:
-        console.print(panel)
-        console.print()
-    
-    console.print(create_legend())
-    console.print()
-    
-    # Station count info
-    total_stations = len([s for s in stations_status.values() if s.get("status") == "IN_SERVICE"])
-    pred_info = ""
-    if predictions:
-        pred_info = f" • Predictions based on {predictions.get('metadata', {}).get('data_source', 'historical data')}"
-    console.print(
-        Align.center(
-            Text(f"📍 Showing {NUM_NEARBY_STATIONS} nearest stations (predictions based on closest {NUM_PREDICTION_STATIONS}) • {total_stations} active stations{pred_info}", style="dim")
-        )
+    # Footer
+    pred_info = f" • Predictions based on {data['meta']['prediction_source']}"
+    footer = Align.center(
+        Text(f"📍 Showing {NUM_NEARBY_STATIONS} nearest stations (predictions based on closest {NUM_PREDICTION_STATIONS}) • {data['meta']['total_stations']} active stations{pred_info}", style="dim")
     )
-    console.print()
+    renderables.append(footer)
+    renderables.append(Text(""))
+    
+    return Group(*renderables)
+
+
+def main():
+    """Main function to run the TUI."""
+    
+    # Parse arguments
+    parser = argparse.ArgumentParser(description="Toronto Bike Share TUI")
+    parser.add_argument("--setup", action="store_true", help="Run setup wizard to configure locations")
+    parser.add_argument("--once", action="store_true", help="Run once and exit (disable watch mode)")
+    args = parser.parse_args()
+    
+    # Run setup if requested
+    if args.setup:
+        locations = run_setup_wizard()
+        # After setup, continue to dashboard? Or exit? 
+        # Usually better to exit so user can see it saved.
+        return
+    else:
+        # Load config or fall back to default
+        locations = load_config()
+        if not locations:
+            # Fallback to defaults
+            locations = LOCATIONS
+            # Remap to Home/Work keys for consistency if using defaults
+            # (The defaults use address as key, but wizard uses "Home"/"Work")
+            if "215 Fort York Blvd" in locations:
+                locations = {
+                    "Home": locations["215 Fort York Blvd"],
+                    "Work": locations["155 Wellington St (RBC Centre)"]
+                }
+    
+    # Initial data fetch
+    with console.status("[bold blue]Loading dashboard data...", spinner="dots"):
+        data = get_dashboard_data(locations)
+    
+    if not data:
+        return
+
+    dashboard = build_dashboard_group(data)
+
+    if args.once:
+        console.print(dashboard)
+    else:
+        # Watch Mode (Default)
+        # Use Live to update the screen
+        try:
+            with Live(dashboard, console=console, screen=True, refresh_per_second=4) as live:
+                while True:
+                    time.sleep(60)  # Refresh every 60 seconds
+                    
+                    # Fetch new data
+                    # We accept that the UI might 'freeze' slightly during the fetch
+                    # In a more complex app we'd use threads, but for this it's fine
+                    data = get_dashboard_data(locations)
+                    if data:
+                        live.update(build_dashboard_group(data))
+        except KeyboardInterrupt:
+            pass  # Exit cleanly on Ctrl+C
 
 
 if __name__ == "__main__":

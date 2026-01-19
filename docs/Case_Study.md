@@ -216,7 +216,34 @@ But 18 bikes is objectively *more* than 5. A commuter only needs one working bik
 
 ---
 
-## 10. Conclusion & Learnings
+## 10. Phase 3: From Script to System (Real-Time Evolution)
+
+After solving the accuracy issues in Phase 2, we faced an architectural limit. The tool was a "fire-and-forget" script: it ran, printed static text, and died.
+
+**The Problem:**
+- Commuters wanted a **"Watch Mode"** (keep it open on a side monitor).
+- We wanted to build a **Mobile Widget** eventually.
+- The code was "Imperative" (mixed logic and printing), making it impossible to reuse the logic for a server or live display.
+
+### The Architecture Refactor
+We fundamentally changed the codebase from **Procedural** to **Functional/Declarative**.
+
+**1. Separation of Concerns (Chef vs. Waiter)**
+We split `main()` into two distinct layers:
+- **The Brain (`get_dashboard_data`)**: Fetches APIs, calculates predictions, and returns a pure Python Dictionary (Data). It knows *nothing* about the screen.
+- **The Face (`build_dashboard_group`)**: Takes that dictionary and builds a tree of Rich objects (Presentation).
+
+**2. The Live Loop**
+By decoupling the data, we could wrap the "Face" in a `rich.Live` manager.
+- **Default Behavior:** `bikes` now enters a live loop, refreshing every 60 seconds without flickering.
+- **Legacy Behavior:** `bikes --once` prints a snapshot and exits (useful for scripts/logs).
+
+**3. Enabling the Ecosystem**
+Because `get_dashboard_data` returns raw data (e.g., `bikes: 5`) instead of formatted text (e.g., `\033[32m█████`), we can now easily wrap this function in a Flask server to power an iOS widget.
+
+---
+
+## 11. Conclusion & Learnings
 By stripping away the map and focusing on the raw data needs of the commuter, we reduced a 12-step interaction process down to 2 seconds.
 
 The key learning is that **context is king**. Knowing "there are 5 bikes" is useless if you don't know that "5 bikes usually disappear in 10 minutes at this time of day." By fusing real-time API data with historical open data, we created a tool that doesn't just display information—it provides *intelligence*.

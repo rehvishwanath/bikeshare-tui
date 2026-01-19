@@ -30,6 +30,7 @@ The official mobile app is great for tourists but painful for daily commuters.
 
 ## The Solution
 `bikes` is a terminal command that gives you:
+- **Real-time Watch Mode (Default):** Keeps running and updates every 60 seconds.
 - **Trip Confidence:** A single glanceable answer: *"Safe to bike"* or *"Consider transit"*
 - **Smart Timing:** Dynamic *"Leave by 8:30 AM"* warnings when bikes are depleting
 - **Instant Availability:** Real-time counts for your home and work locations.
@@ -161,6 +162,7 @@ Detailed design documentation for each feature:
 
 | Document | Description |
 |----------|-------------|
+| [Engineering Learnings](docs/Learnings.md) | **Start Here:** Imperative vs Declarative, Terminal Illusion, and Architecture |
 | [Case Study](docs/Case_Study.md) | The full product case study: problem, audit, solution, and learnings |
 | [Prediction Model Design](docs/Prediction_Model_Design.md) | Why simple statistics beat ML for this problem |
 | [Trip Summary Feature](docs/Trip_Summary_Feature.md) | Complete design rationale for the trip confidence calculation |
