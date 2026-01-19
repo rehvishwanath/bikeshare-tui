@@ -38,12 +38,12 @@ To get any information, the user *must* engage fully with the application. There
     <td width="50%" align="center">
       <img src="../assets/clean_map_clutter.png" alt="Map Clutter"><br>
       <b>3. The "Tap-to-Reveal"</b><br>
-      Is "10" bikes or docks? The map hides critical state behind a tap.
+      The map hides critical details like distance to dock behind a tap and search view.
     </td>
     <td width="50%" align="center">
       <img src="../assets/clean_hidden_details.png" alt="Hidden Details"><br>
       <b>4. Buried Details</b><br>
-      Granular info like E-bike counts is hidden deep in sub-menus.
+      Granular info like E-bike counts is hidden deep in sub-menus with no visual indicator for bikes vs ebikes.
     </td>
   </tr>
 </table>
