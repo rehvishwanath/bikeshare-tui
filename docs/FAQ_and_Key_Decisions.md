@@ -94,6 +94,25 @@ Implemented an interactive **Setup Wizard** (`bikes --setup`) that allows users 
 
 **See also:** [Setup Wizard Feature Documentation](./Setup_Wizard_Feature.md).
 
+### 4. Menu Bar App (Implemented Jan 19, 2026)
+
+**Problem:**
+Commuters need to know their status *before* they leave, without opening a terminal window. The TUI is great for deep dives, but bad for "glanceability".
+
+**Decision:**
+Created a SwiftBar integration that puts a "Traffic Light" indicator in the macOS menu bar.
+
+**Key Design Choices:**
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Technology** | **SwiftBar** | Lightweight, open-source, allows reusing the Python logic without writing a native Swift app. |
+| **UX Metaphor** | **Traffic Light** | `🟢 / 🟡 / 🔴` emojis next to a bicycle icon provide instant status without reading text. |
+| **Architecture** | **New View Layer** | Added `render_swiftbar()` function to the existing engine. Same logic, different output format. |
+| **Integration** | **Wrapper Script** | Used a helper script to launch the plugin with the correct Python path (solving venv issues). |
+
+**See also:** [Menu Bar Feature Documentation](./MenuBar_Feature.md).
+
 ---
 
 ## Setup Wizard: Detailed Q&A

@@ -179,6 +179,7 @@ Detailed design documentation for each feature:
 | [Prediction Model Design](docs/Prediction_Model_Design.md) | Why simple statistics beat ML for this problem |
 | [Trip Summary Feature](docs/Trip_Summary_Feature.md) | Complete design rationale for the trip confidence calculation |
 | [Setup Wizard Feature](docs/Setup_Wizard_Feature.md) | Geocoding decisions, UX flow, and the "800m error" story |
+| [Menu Bar Feature](docs/MenuBar_Feature.md) | Design of the SwiftBar integration and "Traffic Light" UI |
 | [FAQ & Key Decisions](docs/FAQ_and_Key_Decisions.md) | Quick answers to common questions about the design |
 
 ## License
