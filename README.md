@@ -10,104 +10,12 @@ A zero-latency, CLI-based dashboard for Toronto Bike Share commuters. Designed t
 
 *Click the link above to watch a working demo of the app in action.*
 
-<img src="assets/demo.png" width="70%" alt="Demo">
+<img src="assets/demo_watch_mode.gif" width="70%" alt="Demo">
 
-### Menu Bar Integration
-<img src="assets/menu_bar_demo.gif" width="70%" alt="Menu Bar Demo">
-
-## Table of Contents
-- [The Problem](#the-problem)
-- [The Solution](#the-solution)
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [How It Works](#how-it-works)
-- [Customization](#customization)
-- [Documentation](#documentation)
-- [License](#license)
-
-## The Problem
-The official mobile app is great for tourists but painful for daily commuters.
-- **Too many clicks:** 8-12 interactions just to check if you can get a bike.
-- **Snapshot only:** Tells you there are 5 bikes now, but not that they usually disappear in 10 minutes.
-- **No widgets:** You have to open the app, wait for the map, zoom in, and tap a pin.
-
-## The Solution
-`bikes` is a terminal command that gives you:
-- **Real-time Watch Mode (Default):** Keeps running and updates every 60 seconds.
-- **Trip Confidence:** A single glanceable answer: *"Safe to bike"* or *"Consider transit"*
-- **Smart Timing:** Dynamic *"Leave by 8:30 AM"* warnings when bikes are depleting
-- **Instant Availability:** Real-time counts for your home and work locations.
-- **Predictive Intelligence:** Uses historical data (5.3 million trips) to tell you if bikes are filling up or emptying out.
-- **Granular Data:** Separates E-bikes from Classic bikes instantly.
-
-## Key Features
-
-### Trip Summary
-The headline feature - answer "should I bike?" in under 1 second:
-
-```
-╭──────────────────────────────────────────────────────────────────────────────╮
-│                   Trip: HIGH - Safe to bike  (Home → Work)                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-- **Weighted confidence:** Combines bike availability (60%) and dock availability (40%)
-- **Gating rule:** LOW bikes = LOW trip (can't start without a bike)
-- **Direction-aware:** Auto-detects morning (Home→Work) vs evening (Work→Home)
-- **Dynamic "leave by":** Calculates when to leave based on current bikes and depletion rate
-
-### Hyper-Local Predictions
-Predictions are based on the **closest 2 stations**, not an average of all nearby stations. This ensures warnings are relevant to your exact location.
-
-### Setup Wizard
-One-time configuration with address geocoding (no API keys required):
-
-```bash
-bikes --setup
-```
-
-Uses OpenStreetMap to find your exact building and saves settings to `~/.bikes_config.json`.
-
-## Installation
-
-### Prerequisites
-- Python 3.8+
-- Terminal with UTF-8 support (iTerm2, Terminal.app, etc.)
-
-### Quick Start
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/bikeshare-tui.git
-   cd bikeshare-tui
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure your locations:**
-   Run the setup wizard to pinpoint your Home and Work addresses (no API keys required):
-   ```bash
-   python3 src/bikes.py --setup
-   ```
-
-4. Run it:
-   ```bash
-   python3 src/bikes.py
-   ```
-
-### Make it a global command
-
-To run `bikes` from anywhere:
-
-```bash
-chmod +x src/bikes.py
-ln -s $(pwd)/src/bikes.py /usr/local/bin/bikes
-```
-
-Now you can just type `bikes` (or `bikes --setup`) from any terminal.
+### Setup Wizard Demo
+<img src="assets/demo_setup_start.gif" width="70%" alt="Setup Start">
+<img src="assets/demo_setup_home.gif" width="70%" alt="Setup Home">
+<img src="assets/demo_setup_work.gif" width="70%" alt="Setup Work">
 
 ## Menu Bar App (macOS)
 
