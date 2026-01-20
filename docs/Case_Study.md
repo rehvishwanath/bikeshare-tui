@@ -293,13 +293,15 @@ By stripping away the map and focusing on the raw data needs of the commuter, we
 The key learning is that **context is king**. Knowing "there are 5 bikes" is useless if you don't know that "5 bikes usually disappear in 10 minutes at this time of day." By fusing real-time API data with historical open data, we created a tool that doesn't just display information—it provides *intelligence*.
 
 ### Core Design Principles
-*   **Answer the real question first.** Users don't want data; they want decisions. The "Trip Summary" (Safe vs. Unsafe) is more valuable than the raw numbers.
+*   **Answer the real question first.** Users don't want data; they want decisions. The "Trip Summary" (Safe to Bike vs. Consider Transit/Walking) is more valuable than the raw numbers.
 *   **Hardcoding is fragile.** Our 800-meter error proved that geocoding beats manual coordinate entry every time.
 *   **Local context matters.** Averaging across 5 stations diluted the signal. Zooming in to the closest 2 revealed the truth.
 *   **Absolute thresholds complement percentages.** Percentage-based logic said 18 bikes was "Low availability" (because the dock was huge). But for a human, 18 bikes is plenty. We learned that sometimes, a number is just a number.
 
 ### The Engineering Evolution
 *   **Phase 1 (Data):** Simple statistics beat complex ML for cyclical human behaviors.
+*   **Phase 2 (Interaction):** **The CLI is an interface.** Adding an interactive Setup Wizard bridged the gap between a raw developer script and a user-friendly product.
+*   **Phase 2 (Synthesis):** **Algorithmic translation.** We engineered a weighted scoring system to translate raw API data into human decisions ("Safe" vs. "Unsafe"), shifting cognitive load from the user to the machine.
 *   **Phase 3 (Architecture):** **Separation of Concerns is the cornerstone of growth.** Decoupling Logic (`get_dashboard_data`) from Display (`render_tui`) transformed a rigid script into a flexible platform.
 *   **Phase 4 (Ubiquity):** **Meet the user where they are.** A terminal is great for deep dives, but a menu bar traffic light is superior for "at-a-glance" decision making.
 
