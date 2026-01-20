@@ -110,6 +110,8 @@ Now you can just type `bikes` (or `bikes --setup`) from any terminal.
 
 You can put the dashboard right in your menu bar using **SwiftBar**.
 
+<img src="assets/swiftbar_icon.png" height="30" alt="Menu Bar Icon">
+
 1.  **Install SwiftBar:** [Download from GitHub](https://github.com/swiftbar/SwiftBar/releases)
 2.  **Run the Installer:**
     ```bash
@@ -117,6 +119,10 @@ You can put the dashboard right in your menu bar using **SwiftBar**.
     ```
     
 This creates a plugin that runs `bikes --swiftbar` every minute. You'll see a bicycle icon (🟢/🟡/🔴) indicating the status of your commute.
+
+### Preview
+
+<img src="assets/swiftbar_dropdown.png" width="50%" alt="Menu Bar Dropdown">
 
 ## How It Works
 

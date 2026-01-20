@@ -102,6 +102,8 @@ We iterated on the visual design to maximize information density in a tiny space
 *   **Critique:** "Why are there two bike icons?"
 
 ### Iteration 3: The Traffic Light (Final)
+<img src="../assets/swiftbar_icon.png" height="30" alt="Traffic Light Icon">
+
 `🟡 | sfimage=bicycle`
 *   **Visual:** A colored circle (Status) + A bicycle icon (Context).
 *   **Logic:**
@@ -109,6 +111,9 @@ We iterated on the visual design to maximize information density in a tiny space
     *   🟡 (Medium Confidence)
     *   🔴 (Low Confidence)
 *   **Result:** Instantly readable status using native macOS aesthetics.
+
+### Final Dropdown UI
+<img src="../assets/swiftbar_dropdown.png" width="60%" alt="Menu Bar Dropdown">
 
 ---
 
