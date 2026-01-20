@@ -1046,21 +1046,29 @@ def render_swiftbar(data: dict):
     trip = data["trip_summary"]
     confidence = trip["confidence"]
     
+    # Emoji mapping
+    EMOJI_MAP = {"HIGH": "🟢", "MEDIUM": "🟡", "LOW": "🔴"}
+    
     # 1. Menu Bar Item (The "Traffic Light")
     # Using SF Symbols: https://developer.apple.com/sf-symbols/
     symbol = "bicycle"
     color = "white"
+    status_emoji = "⚪"
     
     if confidence == "HIGH":
         color = "green"
+        status_emoji = EMOJI_MAP["HIGH"]
     elif confidence == "MEDIUM":
         color = "yellow"
+        status_emoji = EMOJI_MAP["MEDIUM"]
     else:
         color = "red"
         symbol = "exclamationmark.triangle"
+        status_emoji = EMOJI_MAP["LOW"]
         
     # The header line
-    print(f":{symbol}: {confidence} | sfimage={symbol} color={color}")
+    # Removed text symbol/confidence to avoid double icons and use emojis instead
+    print(f"{status_emoji} | sfimage={symbol} color={color}")
     
     print("---")
     
@@ -1087,9 +1095,9 @@ def render_swiftbar(data: dict):
         # Prediction
         pred = loc_data["prediction"]
         if pred:
-            bike_status = f"Bikes: {pred['bike_likelihood']}"
-            dock_status = f"Docks: {pred['dock_likelihood']}"
-            print(f"{bike_status} • {dock_status} | size=11 color=gray")
+            bike_emoji = EMOJI_MAP.get(pred['bike_likelihood'], "⚪")
+            dock_emoji = EMOJI_MAP.get(pred['dock_likelihood'], "⚪")
+            print(f"Bikes: {bike_emoji} • Docks: {dock_emoji} | size=11 color=gray")
             
             if pred.get('bike_warning'):
                 print(f"⚠️ {pred['bike_warning']} | size=11 color=orange")
