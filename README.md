@@ -12,6 +12,9 @@ A zero-latency, CLI-based dashboard for Toronto Bike Share commuters. Designed t
 
 <img src="assets/demo.png" width="70%" alt="Demo">
 
+### Menu Bar Integration
+<img src="assets/menu_bar_demo.gif" width="70%" alt="Menu Bar Demo">
+
 ## Table of Contents
 - [The Problem](#the-problem)
 - [The Solution](#the-solution)
