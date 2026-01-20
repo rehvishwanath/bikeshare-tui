@@ -1,4 +1,4 @@
-# Toronto Bike Share TUI 🚲
+# Toronto Bike Share TUI and Mac Menubar App 🚲
 
 > **Stop tapping. Start riding.**
 
@@ -8,7 +8,7 @@ A zero-latency, real-time, CLI-based dashboard and Mac Menubar App for Toronto B
 
 <img src="assets/demo_watch_mode.gif" width="70%" alt="Demo">
 
-<img src="menu_bar_demo.gif" width="70%" alt="Demo">
+<img src="assets/menu_bar_demo.gif" width="70%" alt="Menu Bar Demo">
 
 ## Table of Contents
 - [The Problem](#the-problem)
