@@ -24,9 +24,9 @@ fi
 # Create the wrapper script
 echo "#!/bin/bash" > "$PLUGIN_PATH"
 echo "" >> "$PLUGIN_PATH"
-# Ensure we use the python from the user's path (or specific if needed)
-# Using python3 directly assuming standard environment
-echo "python3 \"$BIKES_SCRIPT\" --swiftbar" >> "$PLUGIN_PATH"
+# Use the current python interpreter to ensure dependencies (like rich) are found
+PYTHON_PATH="$(which python3)"
+echo "\"$PYTHON_PATH\" \"$BIKES_SCRIPT\" --swiftbar" >> "$PLUGIN_PATH"
 
 chmod +x "$PLUGIN_PATH"
 
