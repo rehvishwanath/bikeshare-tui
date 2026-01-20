@@ -2,15 +2,13 @@
 
 > **Stop tapping. Start riding.**
 
-A zero-latency, CLI-based dashboard for Toronto Bike Share commuters. Designed to solve the "death by a thousand cuts" friction of using the official mobile app for daily commutes.
+A zero-latency, real-time, CLI-based dashboard and Mac Menubar App for Toronto Bike Share commuters. Designed to solve the "death by a thousand cuts" friction of using the official mobile app for daily commutes.
 
 ### Watch the Demo
 
-[Click here to watch the demo 📺](https://youtu.be/vKsHNcFMIC0)
-
-*Click the link above to watch a working demo of the app in action.*
-
 <img src="assets/demo_watch_mode.gif" width="70%" alt="Demo">
+
+<img src="menu_bar_demo.gif" width="70%" alt="Demo">
 
 ## Table of Contents
 - [The Problem](#the-problem)
@@ -126,7 +124,7 @@ This creates a plugin that runs `bikes --swiftbar` every minute. You'll see a bi
 
 ### Preview
 
-<img src="assets/swiftbar_dropdown.png" width="50%" alt="Menu Bar Dropdown">
+<img src="assets/menu_bar_demo.gif" width="70%" alt="Menu Bar Demo">
 
 ## How It Works
 
