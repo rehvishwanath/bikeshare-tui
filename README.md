@@ -130,6 +130,8 @@ This creates a plugin that runs `bikes --swiftbar` every minute. You'll see a bi
 
 Wake up and check your commute status directly from your iPhone home screen.
 
+<img src="assets/ios_widget_demo.png" width="300" alt="iOS Widget">
+
 1.  **Start the Server:**
     ```bash
     python3 src/server.py
