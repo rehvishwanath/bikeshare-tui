@@ -31,7 +31,8 @@ async function createWidget() {
   // Extract Data
   let confidence = data.trip_summary.confidence; // HIGH, MEDIUM, LOW
   let message = data.trip_summary.message; // "Safe to bike"
-  let direction = data.direction.to; // "Work" or "Home"
+  let fromLoc = data.direction.from; // "Home" or "Work"
+  let toLoc = data.direction.to; // "Work" or "Home"
   
   // Colors
   let statusColor = Color.gray();
@@ -45,7 +46,7 @@ async function createWidget() {
   let headerStack = w.addStack();
   headerStack.layoutHorizontally();
   
-  let title = headerStack.addText(`To ${direction}`);
+  let title = headerStack.addText(`${fromLoc} → ${toLoc}`);
   title.font = Font.boldSystemFont(12);
   title.textColor = Color.gray();
   
