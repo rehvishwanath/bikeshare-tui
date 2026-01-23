@@ -1,4 +1,4 @@
-// Bike Share Traffic Light Widget
+// Bike Share Widget - Option 5 Design
 // Copy this into Scriptable App on iOS
 
 // --- CONFIGURATION ---
@@ -20,7 +20,7 @@ async function createWidget() {
   let data = await fetchData();
   
   let w = new ListWidget();
-  w.backgroundColor = new Color("#1C1C1E"); // Dark gray background
+  w.backgroundColor = new Color("#0f172a"); // bg-slate-900
   
   if (data.error) {
     let t = w.addText("⚠️ Error");
@@ -28,68 +28,119 @@ async function createWidget() {
     return w;
   }
 
-  // Extract Data
-  let confidence = data.trip_summary.confidence; // HIGH, MEDIUM, LOW
-  let message = data.trip_summary.message; // "Safe to bike"
-  let fromLoc = data.direction.from; // "Home" or "Work"
-  let toLoc = data.direction.to; // "Work" or "Home"
+  // --- DATA PARSING ---
+  let confidence = data.trip_summary.confidence;
+  let message = data.trip_summary.message;
+  let fromLoc = data.direction.from;
+  let toLoc = data.direction.to;
   
-  // Colors
-  let statusColor = Color.gray();
-  if (confidence == "HIGH") statusColor = new Color("#30D158"); // Green
-  if (confidence == "MEDIUM") statusColor = new Color("#FFD60A"); // Yellow
-  if (confidence == "LOW") statusColor = new Color("#FF453A"); // Red
+  // Colors (Tailwind approximation)
+  const cSlate700 = new Color("#334155");
+  const cSlate500 = new Color("#64748b");
+  const cBlueActive = new Color("#3b82f6", 0.2); // Blue-500/20
+  const cBlueIcon = new Color("#60a5fa"); // Blue-400
+  const cGrayIcon = new Color("#94a3b8"); // Slate-400
+  
+  let statusColor = new Color("#34d399"); // Emerald-400 (Default Green)
+  if (confidence == "MEDIUM") statusColor = new Color("#fbbf24"); // Amber-400
+  if (confidence == "LOW") statusColor = new Color("#f87171"); // Red-400
 
+  // Icons logic
+  let isFromHome = fromLoc === "Home";
+  let leftIcon = isFromHome ? "house.fill" : "briefcase.fill";
+  let rightIcon = isFromHome ? "briefcase.fill" : "house.fill";
+  
   // --- UI DRAWING ---
   
-  // 1. Direction Label
-  let headerStack = w.addStack();
-  headerStack.layoutHorizontally();
+  // 1. Top Section (Row with Icons)
+  let topStack = w.addStack();
+  topStack.layoutHorizontally();
+  topStack.centerAlignContent();
   
-  let title = headerStack.addText(`${fromLoc} → ${toLoc}`);
-  title.font = Font.boldSystemFont(12);
-  title.textColor = Color.gray();
+  // Left Icon (Active/Start)
+  let leftImg = drawCircleIcon(leftIcon, cBlueActive, cBlueIcon);
+  topStack.addImage(leftImg);
   
-  headerStack.addSpacer();
+  // Connector Line
+  topStack.addSpacer(4);
+  let lineStack = topStack.addStack();
+  lineStack.layoutHorizontally();
+  lineStack.centerAlignContent();
   
-  w.addSpacer(8);
+  // We simulate the line with a thin rectangle or just text chars
+  // Option 5 has a line with a chevron. 
+  // Let's use SF Symbols for the arrow part, it's cleaner.
+  let arrow = lineStack.addImage(SFSymbol.named("chevron.right").image);
+  arrow.imageSize = new Size(12, 12);
+  arrow.tintColor = statusColor; // Use status color for the "flow"
+  arrow.resizable = false;
   
-  // 2. Traffic Light (Circle + Icon)
-  let statusStack = w.addStack();
-  statusStack.centerAlignContent();
+  topStack.addSpacer(4);
   
-  // Draw Circle
-  let circle = statusStack.addImage(drawCircle(statusColor));
-  circle.imageSize = new Size(16, 16);
+  // Right Icon (Inactive/End)
+  let rightImg = drawCircleIcon(rightIcon, cSlate700, cGrayIcon);
+  topStack.addImage(rightImg);
   
-  statusStack.addSpacer(6);
+  // Spacer to push text down
+  w.addSpacer(); // Flex spacer
   
-  // Draw Bike Icon (using SF Symbol)
-  let sfSymbol = SFSymbol.named("bicycle");
-  let icon = statusStack.addImage(sfSymbol.image);
-  icon.imageSize = new Size(24, 24);
-  icon.tintColor = Color.white();
+  // 2. Bottom Section (Text)
+  let textStack = w.addStack();
+  textStack.layoutVertically();
+  textStack.centerAlignContent(); // Center horizontally
   
-  w.addSpacer(8);
+  // "Safe to bike"
+  let statusText = textStack.addText(message);
+  statusText.font = Font.boldSystemFont(18);
+  statusText.textColor = statusColor;
+  statusText.centerAlignText();
   
-  // 3. Message
-  let msgText = w.addText(message);
-  msgText.font = Font.systemFont(14);
-  msgText.textColor = statusColor;
-  msgText.minimumScaleFactor = 0.8; // Shrink if too long
+  // "to home"
+  let dirText = textStack.addText(`to ${toLoc.toLowerCase()}`);
+  dirText.font = Font.systemFont(12);
+  dirText.textColor = cSlate500;
+  dirText.centerAlignText();
   
-  // 4. "Leave By" Time (if exists)
+  // "Leave by" (Optional, extra context)
   if (data.trip_summary.leave_by) {
-    w.addSpacer(4);
-    let timeText = w.addText(`Leave: ${data.trip_summary.leave_by}`);
-    timeText.font = Font.boldSystemFont(12);
-    timeText.textColor = Color.orange();
+    textStack.addSpacer(2);
+    let timeText = textStack.addText(`Leave: ${data.trip_summary.leave_by}`);
+    timeText.font = Font.boldSystemFont(10);
+    timeText.textColor = new Color("#fbbf24");
+    timeText.centerAlignText();
   }
 
-  // Refresh every 15 mins
+  // Refresh interval
   w.refreshAfterDate = new Date(Date.now() + 1000 * 60 * 15);
   
   return w;
+}
+
+// Helper: Draw a colored circle with an SF Symbol inside
+function drawCircleIcon(symbolName, bgColor, iconColor) {
+  const size = 32;
+  const ctx = new DrawContext();
+  ctx.size = new Size(size, size);
+  ctx.opaque = false;
+  
+  // Draw Circle Background
+  ctx.setFillColor(bgColor);
+  ctx.fillEllipse(new Rect(0, 0, size, size));
+  
+  // Draw Icon
+  let sym = SFSymbol.named(symbolName);
+  sym.applyFont(Font.systemFont(16));
+  let img = sym.image;
+  
+  // Center the icon
+  // We need to tint it manually or draw it as an image with tint
+  ctx.setTintColor(iconColor);
+  // Calculate centering (approximate, SF symbols vary in size)
+  let iconSize = 16;
+  let offset = (size - iconSize) / 2;
+  ctx.drawImageInRect(img, new Rect(offset, offset, iconSize, iconSize));
+  
+  return ctx.getImage();
 }
 
 async function fetchData() {
@@ -100,14 +151,4 @@ async function fetchData() {
   } catch (e) {
     return { error: e.message };
   }
-}
-
-// Helper to draw a colored circle image
-function drawCircle(color) {
-  let ctx = new DrawContext();
-  ctx.size = new Size(32, 32);
-  ctx.opaque = false;
-  ctx.setFillColor(color);
-  ctx.fillEllipse(new Rect(0, 0, 32, 32));
-  return ctx.getImage();
 }
