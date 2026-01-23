@@ -3,12 +3,7 @@
 
 // --- CONFIGURATION ---
 const API_KEY = "j0viWMEnrzwEGzqWiGXU4A"; // Your generated key
-
-// ⚠️ REPLACE THIS with your Tailscale IP (starts with 100.x.y.z)
-// I could not auto-detect it on your system.
-// To find it: Open Tailscale on Mac -> Right Click your Machine -> Copy IP
-const SERVER_HOST = "YOUR_TAILSCALE_IP:5001"; 
-
+const SERVER_HOST = "100.69.233.114:5001"; // Your Tailscale IP
 const API_URL = `http://${SERVER_HOST}/status?key=${API_KEY}`;
 
 // --- MAIN ---
