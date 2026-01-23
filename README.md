@@ -2,7 +2,7 @@
 
 > **Stop tapping. Start riding.**
 
-A zero-latency, real-time, CLI-based dashboard and Mac Menubar App for Toronto Bike Share commuters. Designed to solve the "death by a thousand cuts" friction of using the official mobile app for daily commutes.
+A zero-latency, real-time, CLI-based dashboard, Mac Menubar App and iOS Widget for Toronto Bike Share commuters. Designed to solve the "death by a thousand cuts" friction of using the official mobile app for daily commutes.
 
 ### Watch the Demo
 
@@ -126,6 +126,19 @@ This creates a plugin that runs `bikes --swiftbar` every minute. You'll see a bi
 
 <img src="assets/menu_bar_demo.gif" width="70%" alt="Menu Bar Demo">
 
+## iOS Home Screen Widget (Mobile)
+
+Wake up and check your commute status directly from your iPhone home screen.
+
+1.  **Start the Server:**
+    ```bash
+    python3 src/server.py
+    ```
+2.  **Install Scriptable:** Download the free [Scriptable App](https://scriptable.app/) for iOS.
+3.  **Add the Widget:** Copy the code from `scripts/widget.js` into Scriptable and add a widget to your home screen.
+
+*Note: This feature uses Tailscale for secure remote access without exposing your Mac to the public internet.*
+
 ## How It Works
 
 ### 1. Real-Time Data
@@ -188,6 +201,7 @@ Detailed design documentation for each feature:
 | [Trip Summary Feature](docs/Trip_Summary_Feature.md) | Complete design rationale for the trip confidence calculation |
 | [Setup Wizard Feature](docs/Setup_Wizard_Feature.md) | Geocoding decisions, UX flow, and the "800m error" story |
 | [Menu Bar Feature](docs/MenuBar_Feature.md) | Design of the SwiftBar integration and "Traffic Light" UI |
+| [iOS Widget Feature](docs/iOS_Widget_Feature.md) | Architecture of the "Private Cloud" (Tailscale + Flask + Scriptable) |
 | [FAQ & Key Decisions](docs/FAQ_and_Key_Decisions.md) | Quick answers to common questions about the design |
 
 ## License
