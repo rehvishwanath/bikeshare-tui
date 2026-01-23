@@ -144,39 +144,6 @@ function addCircleIcon(parentStack, symbolName, bgColor, iconColor) {
   stack.addSpacer();
 }
 
-  // Refresh interval
-  w.refreshAfterDate = new Date(Date.now() + 1000 * 60 * 15);
-  
-  return w;
-}
-
-// Helper: Add a colored circle stack with an SF Symbol inside
-function addCircleIcon(parentStack, symbolName, bgColor, iconColor) {
-  let stack = parentStack.addStack();
-  stack.size = new Size(32, 32);
-  stack.layoutHorizontally();
-  stack.centerAlignContent();
-  
-  // Draw Circle Background using DrawContext (just the circle)
-  let ctx = new DrawContext();
-  ctx.size = new Size(32, 32);
-  ctx.opaque = false;
-  ctx.setFillColor(bgColor);
-  ctx.fillEllipse(new Rect(0, 0, 32, 32));
-  stack.backgroundImage = ctx.getImage();
-  
-  // Add Icon on top (centered via stack layout)
-  // We need to ensure the icon centers. 
-  // Stacks center vertically by default if centerAlignContent is set.
-  // Horizontal centering requires addSpacer on both sides if not full width.
-  stack.addSpacer();
-  let sym = SFSymbol.named(symbolName);
-  let widgetImg = stack.addImage(sym.image);
-  widgetImg.tintColor = iconColor;
-  widgetImg.imageSize = new Size(16, 16);
-  stack.addSpacer();
-}
-
 async function fetchData() {
   try {
     let req = new Request(API_URL);
