@@ -56,54 +56,93 @@ async function createWidget() {
   let topStack = w.addStack();
   topStack.layoutHorizontally();
   topStack.centerAlignContent();
+  topStack.addSpacer(); // Center everything horizontally
   
   // Left Icon (Active/Start)
   addCircleIcon(topStack, leftIcon, cBlueActive, cBlueIcon);
   
   // Connector Line
-  topStack.addSpacer(4);
+  topStack.addSpacer(6);
   let lineStack = topStack.addStack();
   lineStack.layoutHorizontally();
   lineStack.centerAlignContent();
   
-  let arrow = lineStack.addImage(SFSymbol.named("chevron.right").image);
-  arrow.imageSize = new Size(12, 12);
+  // Thicker arrow
+  let arrowSym = SFSymbol.named("chevron.right");
+  arrowSym.applyFont(Font.systemFont(16)); 
+  let arrow = lineStack.addImage(arrowSym.image);
+  arrow.imageSize = new Size(14, 14);
   arrow.tintColor = statusColor;
   arrow.resizable = false;
   
-  topStack.addSpacer(4);
+  topStack.addSpacer(6);
   
   // Right Icon (Inactive/End)
   addCircleIcon(topStack, rightIcon, cSlate700, cGrayIcon);
   
+  topStack.addSpacer(); // Center everything horizontally
+  
   // Spacer to push text down
-  w.addSpacer(); // Flex spacer
+  w.addSpacer(); 
   
   // 2. Bottom Section (Text)
   let textStack = w.addStack();
   textStack.layoutVertically();
-  textStack.centerAlignContent(); // Center horizontally
+  textStack.centerAlignContent(); 
   
   // "Safe to bike"
   let statusText = textStack.addText(message);
-  statusText.font = Font.boldSystemFont(18);
+  statusText.font = Font.boldSystemFont(20); // Larger text
   statusText.textColor = statusColor;
   statusText.centerAlignText();
   
   // "to home"
   let dirText = textStack.addText(`to ${toLoc.toLowerCase()}`);
-  dirText.font = Font.systemFont(12);
+  dirText.font = Font.systemFont(13);
   dirText.textColor = cSlate500;
   dirText.centerAlignText();
   
   // "Leave by" (Optional, extra context)
   if (data.trip_summary.leave_by) {
-    textStack.addSpacer(2);
+    textStack.addSpacer(4);
     let timeText = textStack.addText(`Leave: ${data.trip_summary.leave_by}`);
-    timeText.font = Font.boldSystemFont(10);
+    timeText.font = Font.boldSystemFont(11);
     timeText.textColor = new Color("#fbbf24");
     timeText.centerAlignText();
   }
+
+  w.addSpacer(10); // Bottom padding balance
+
+  // Refresh interval
+  w.refreshAfterDate = new Date(Date.now() + 1000 * 60 * 15);
+  
+  return w;
+}
+
+// Helper: Add a colored circle stack with an SF Symbol inside
+function addCircleIcon(parentStack, symbolName, bgColor, iconColor) {
+  let stack = parentStack.addStack();
+  stack.size = new Size(40, 40); // Increased size
+  stack.layoutHorizontally();
+  stack.centerAlignContent();
+  
+  // Draw Circle Background
+  let ctx = new DrawContext();
+  ctx.size = new Size(40, 40);
+  ctx.opaque = false;
+  ctx.setFillColor(bgColor);
+  ctx.fillEllipse(new Rect(0, 0, 40, 40));
+  stack.backgroundImage = ctx.getImage();
+  
+  // Add Icon on top
+  stack.addSpacer();
+  let sym = SFSymbol.named(symbolName);
+  // No font application needed here as image is tinted directly
+  let widgetImg = stack.addImage(sym.image);
+  widgetImg.tintColor = iconColor;
+  widgetImg.imageSize = new Size(20, 20); // Increased size
+  stack.addSpacer();
+}
 
   // Refresh interval
   w.refreshAfterDate = new Date(Date.now() + 1000 * 60 * 15);
