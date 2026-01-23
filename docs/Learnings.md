@@ -110,6 +110,33 @@ We moved from a linear flow to a **Model-View-Controller (MVC)** pattern inside 
 3.  **The View (`build_dashboard_group`)**: The Artist. It takes raw data and builds a visual blueprint (Rich objects).
 4.  **The Engine (`Live` Manager)**: The Painter. It takes the blueprint and renders it to the screen using **Double Buffering**.
 
+### Double Buffering (The "No Flicker" Trick)
+Why does the new version look so smooth?
+*   **Direct Printing:** Like writing on a whiteboard with a marker. To update, you must erase (flicker) and rewrite.
+*   **Live Manager:** Like having two whiteboards. The engine draws the new frame on a hidden board, then instantly swaps it with the visible one. The user never sees the "drawing" process, only the result.
+
+---
+
+## 6. The API Layer: How Flask "Wraps" Logic
+
+Moving from a local script to a "Private Cloud" API required understanding three concepts: Wrapping, Exposing, and Translation.
+
+### 1. The Translator (Flask)
+Your Python script speaks "Python" (Dictionaries, Lists, Integers). The Internet speaks "HTTP" (GET Requests, JSON strings).
+*   **Flask** acts as the translator. It takes an incoming HTTP request, translates it into a Python function call, waits for the result, and translates the Python Dictionary back into a JSON string response.
+
+### 2. "Wrapping" the Logic
+We took our existing engine (`get_dashboard_data`) and "wrapped" it in a web route using a **Decorator**:
+
+```python
+@app.route('/status')  # <--- The Door
+def status():
+    data = get_dashboard_data()  # <--- The Logic
+    return jsonify(data)  # <--- The Translation
+```
+
+This tells Flask: *"When someone knocks on the door labeled `/status`, run the engine and give them the result."* We didn't have to rewrite the engine; we just gave it a new door.
+
 ### 3. "Exposing" the Server (IPs & Ports)
 To let the iPhone reach the Mac, we had to configure the "Address":
 
