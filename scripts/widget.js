@@ -58,8 +58,7 @@ async function createWidget() {
   topStack.centerAlignContent();
   
   // Left Icon (Active/Start)
-  let leftImg = drawCircleIcon(leftIcon, cBlueActive, cBlueIcon);
-  topStack.addImage(leftImg);
+  addCircleIcon(topStack, leftIcon, cBlueActive, cBlueIcon);
   
   // Connector Line
   topStack.addSpacer(4);
@@ -67,19 +66,15 @@ async function createWidget() {
   lineStack.layoutHorizontally();
   lineStack.centerAlignContent();
   
-  // We simulate the line with a thin rectangle or just text chars
-  // Option 5 has a line with a chevron. 
-  // Let's use SF Symbols for the arrow part, it's cleaner.
   let arrow = lineStack.addImage(SFSymbol.named("chevron.right").image);
   arrow.imageSize = new Size(12, 12);
-  arrow.tintColor = statusColor; // Use status color for the "flow"
+  arrow.tintColor = statusColor;
   arrow.resizable = false;
   
   topStack.addSpacer(4);
   
   // Right Icon (Inactive/End)
-  let rightImg = drawCircleIcon(rightIcon, cSlate700, cGrayIcon);
-  topStack.addImage(rightImg);
+  addCircleIcon(topStack, rightIcon, cSlate700, cGrayIcon);
   
   // Spacer to push text down
   w.addSpacer(); // Flex spacer
@@ -116,31 +111,31 @@ async function createWidget() {
   return w;
 }
 
-// Helper: Draw a colored circle with an SF Symbol inside
-function drawCircleIcon(symbolName, bgColor, iconColor) {
-  const size = 32;
-  const ctx = new DrawContext();
-  ctx.size = new Size(size, size);
+// Helper: Add a colored circle stack with an SF Symbol inside
+function addCircleIcon(parentStack, symbolName, bgColor, iconColor) {
+  let stack = parentStack.addStack();
+  stack.size = new Size(32, 32);
+  stack.layoutHorizontally();
+  stack.centerAlignContent();
+  
+  // Draw Circle Background using DrawContext (just the circle)
+  let ctx = new DrawContext();
+  ctx.size = new Size(32, 32);
   ctx.opaque = false;
-  
-  // Draw Circle Background
   ctx.setFillColor(bgColor);
-  ctx.fillEllipse(new Rect(0, 0, size, size));
+  ctx.fillEllipse(new Rect(0, 0, 32, 32));
+  stack.backgroundImage = ctx.getImage();
   
-  // Draw Icon
+  // Add Icon on top (centered via stack layout)
+  // We need to ensure the icon centers. 
+  // Stacks center vertically by default if centerAlignContent is set.
+  // Horizontal centering requires addSpacer on both sides if not full width.
+  stack.addSpacer();
   let sym = SFSymbol.named(symbolName);
-  sym.applyFont(Font.systemFont(16));
-  let img = sym.image;
-  
-  // Center the icon
-  // We need to tint it manually or draw it as an image with tint
-  ctx.setTintColor(iconColor);
-  // Calculate centering (approximate, SF symbols vary in size)
-  let iconSize = 16;
-  let offset = (size - iconSize) / 2;
-  ctx.drawImageInRect(img, new Rect(offset, offset, iconSize, iconSize));
-  
-  return ctx.getImage();
+  let widgetImg = stack.addImage(sym.image);
+  widgetImg.tintColor = iconColor;
+  widgetImg.imageSize = new Size(16, 16);
+  stack.addSpacer();
 }
 
 async function fetchData() {
